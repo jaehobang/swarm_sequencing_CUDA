@@ -1,6 +1,12 @@
 time stamp
-int64 event_type
-POS screen_location
+int32 event_type
+float32[2] screen_pos
 string button_name
-float64 cost_of_path
+float32 cost_of_path
 bool is_valid_path
+bool is_train
+int32 map_number
+string name
+float32[] switch_times
+string[] behavior_sequences
+
