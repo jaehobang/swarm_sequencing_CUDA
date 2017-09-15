@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 2.8.3)
 project(interface)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
+set(CMAKE_AUTOMOC ON)
+
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -11,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  custom_messages
+  rviz
 )
 
 ## System dependencies are found with CMake's conventions
@@ -105,7 +109,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES interface
-#  CATKIN_DEPENDS roscpp rospy std_msgs
+CATKIN_DEPENDS roscpp rospy std_msgs custom_messages rviz
 #  DEPENDS system_lib
 )
 
@@ -120,6 +124,25 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+
+find_package(Qt5Widgets REQUIRED)
+include_directories(${Qt5Widgets_INCLUDES})
+
+add_definitions(-DQT_NO_KEYWORDS)
+
+add_definitions(${Qt5Widgets_DEFINITIONS})
+
+set(CMAKE_CXX_FLAGS "${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
+
+set(SOURCE_FILES
+  src/myviz.cpp
+  src/main.cpp
+  src/myviz.h
+)
+
+
+
+
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/interface.cpp
@@ -133,7 +156,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/interface_node.cpp)
+add_executable(${PROJECT_NAME}_node ${SOURCE_FILES})
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -143,12 +166,14 @@ include_directories(
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+#add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(${PROJECT_NAME}_node
+   ${Qt5Widgets_LIBRARIES}
+   ${catkin_LIBRARIES}
+ )
+
 
 #############
 ## Install ##

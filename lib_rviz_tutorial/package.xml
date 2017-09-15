@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>interface</name>
+  <name>lib_rviz_tutorial</name>
   <version>0.0.0</version>
-  <description>The interface package</description>
+  <description>The lib_rviz_tutorial package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -19,7 +19,7 @@
   <!-- Url tags are optional, but multiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://wiki.ros.org/interface</url> -->
+  <!-- <url type="website">http://wiki.ros.org/lib_rviz_tutorial</url> -->
 
 
   <!-- Author tags are optional, multiple are allowed, one per tag -->
@@ -41,15 +41,11 @@
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>std_msgs</build_depend>
-  <build_depend>custom_messages</build_depend>
   <build_depend>rviz</build_depend>
   <run_depend>roscpp</run_depend>
-  <run_depend>rospy</run_depend>
-  <run_depend>std_msgs</run_depend>
-  <run_depend>custom_messages</run_depend>
   <run_depend>rviz</run_depend>
+
+
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- Other tools can request additional information be placed here -->
