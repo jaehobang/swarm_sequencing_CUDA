@@ -499,13 +499,8 @@ param @ d_param - parameters about the swarm
 param @ dir - Number of directions (7 for now)
 param @ iteration - used for backtracing */
 __global__
-void k_expandStates(node *d_expanded, node* d_open, PARAM* d_param, int dir, int iteration, int real_copies, int queue_i)
+void k_expandStates(node* d_expanded, node* d_open, PARAM* d_param, int dir, int iteration, int real_copies, int queue_i)
 {
-	//int dir_index = blockIdx.x;
-	//int node_index = threadIdx.x;
-	//int robot_index = blockIdx.y;
-	//int index = node_index * dir + dir_index;
-
 	int dir_index = threadIdx.x;
 	int robot_index = threadIdx.y;
 	int node_index = blockIdx.x;
@@ -521,16 +516,18 @@ void k_expandStates(node *d_expanded, node* d_open, PARAM* d_param, int dir, int
 	float ti = d_param->ti;
 	float dT = d_param->dT;
 	float tf = d_param->tf;
-	float tbegin = ti + d_open[node_index].sequence_numel * dT;
+ 
+  if(d_open[node_index].sequence_numel >= d_param->time_array_count + 1) {
+    d_expanded[index].isEmpty = 1;
+    return;
+  }
 
-
-	float tend = tbegin + d_param->time_array[d_open[node_index].sequence_numel];
-	
 	int steps = (int)dT / dt;
 	int currSequenceIndex = d_open[node_index].sequence_numel;
 
 	if(currSequenceIndex == 0) steps = 
 		(int) d_param->time_array[currSequenceIndex] / dt;
+  else if(currSequenceIndex == d_param->time_array_count) steps = (int) (tf - d_param->time_array[d_param->time_array_count-1]) / dt;
 	else steps = (int) (d_param->time_array[currSequenceIndex] - d_param->time_array[currSequenceIndex - 1]) / dt;
 	/* Only write to global memory once */
 	if (robot_index == 0) d_expanded[index] = d_open[node_index];
@@ -556,16 +553,14 @@ void k_expandStates(node *d_expanded, node* d_open, PARAM* d_param, int dir, int
 		d_expanded[index].behaviorIndices[currSequenceIndex] = dir_index;
 		d_expanded[index].behaviorIdx = d_expanded[index].behaviorIdx * 10 + dir_index;
 
-		/* Swarm sequence invalid if exceeded end time */
-		d_expanded[index].isEmpty = (tbegin >= tf);
-
 		/* Check swarm if reached destination */
 		d_expanded[index].reached_destination = d_target_reached(d_expanded[index], d_param);
 
 		/* cost_estimate is total cost: cost_estimate = cost_next + H*cost_to_go */
 		d_expanded[index].F = d_expanded[index].G + (d_param->H) * d_calculate_H(d_expanded[index], d_param, queue_i);
 		d_expanded[index].sequence_numel += 1;
-		//printf("SEQUENCE_NUMEL IS %d\n", d_expanded[index].sequence_numel);
+		//printf("INSIDE KERNEL>>> [%d].F = %f, .behaviorIdx = %llu\n", 
+    //        index, d_expanded[index].F, d_expanded[index].behaviorIdx);
 	}
 	return;
 }
@@ -676,25 +671,20 @@ void print_distance_left(node best_node, PARAM* param)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-std::vector<Queue_p*> initializeQps(PARAM* param, node h_start)
+Queue* initializeQps(PARAM* param, node h_start)
 {
-	std::vector<Queue_p*> qps;
+	Queue* qps = new Queue[QUEUE_SIZE];
 
 	for (int i = 0; i < param->q_count; i++)
 	{
-		Queue_p *qp_p = new Queue_p;
-		qp_p->h_open_p = new std::vector<node>;
-		qp_p->iteration = 1;
-
-
-		qps.push_back(qp_p);
+		qps[i].iteration = 1;
 	}
 
 
 
 	for (int i = 0; i < param->q_count; i++)
 	{
-		(*qps[i]->h_open_p).push_back(h_start);
+    qps[i].h_open.push_back(h_start);
 	}
 
 	return qps;
@@ -746,24 +736,28 @@ float h_calculate_H(node d_expanded, PARAM* d_param, int mode)
 
 }
 
-void updateQueues(std::vector<Queue_p*> qps, node curr, PARAM* param, int queue_i)
+void updateQueues(Queue* qps, node curr, PARAM* param, int queue_i)
 {
 	curr.F = curr.G + param->H * h_calculate_H(curr, param, 0);
 	float queue_0_F = curr.F;
-	(*qps[0]->h_open_p).push_back(curr);
-	for (int i = 1; i < qps.size(); i++)
+  //printf("UpdateQueues>>>> curr.F = %f, curr.behaviorIdx = %llu\n", curr.F, curr.behaviorIdx);
+
+	qps[0].h_open.push_back(curr);
+  int index = qps[0].h_open.size() - 1;
+  //printf("Just to make sure UpdateQueus>>> curr.F = %f, curr.behaviorIdx = %llu\n", 
+  //       qps[0].h_open[index].F, qps[0].h_open[index].behaviorIdx);
+	for (int i = 1; i < QUEUE_SIZE; i++)
 	{
 		curr.F = curr.G + param->H * h_calculate_H(curr, param, i);
 		//printf("curr_i_F = %f, cuff_0_F = %f\n", curr.F, queue_0_F);
-		if (curr.F <= param->H2 * queue_0_F) (*qps[i]->h_open_p).push_back(curr);
+		if (curr.F <= param->H2 * queue_0_F) qps[i].h_open.push_back(curr);
 	}
 	return;
 }
 
 
-void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, node* best_attempt, int queue_i)
+void expandStates(Queue* qps, PARAM* param, node* best_node_p, node* best_attempt, int queue_i)
 {
-	Queue_p* qp = qps[queue_i];
 	PARAM* d_param; /* device parameters */
 	cudaMalloc(&d_param, sizeof(PARAM));
 	cudaMemcpy(d_param, param, sizeof(PARAM), cudaMemcpyHostToDevice);
@@ -772,19 +766,19 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, no
 	node *d_expanded; /* device expanded nodes */
 
 					  /* Dequeue from h_open */
-	int iteration = qp->iteration;
+	int iteration = qps[queue_i].iteration;
 	printf("Inside ExpandStates....iteration is %d\n", iteration);
 
-	int h_open_size = (*qp->h_open_p).size();
+	int h_open_size = qps[queue_i].h_open.size();
 	int real_copies = (h_open_size > ARRAY_SIZE) ? ARRAY_SIZE : h_open_size;
 	node* h_open_array = new node[real_copies]; /* temporary data used for cudaMemcpy of h_open */
 	node* h_expanded = new node[real_copies * DIR]; /* data used for retrieving expanded nodes data; Also used for backtracking */
 
 	printf("For %d, real_copies %d\n", queue_i, real_copies);
 
-	std::copy((*qp->h_open_p).begin(), (*qp->h_open_p).begin() + real_copies, h_open_array);
+	std::copy(qps[queue_i].h_open.begin(), qps[queue_i].h_open.begin() + real_copies, h_open_array);
 	/* Erase the same nodes from all queues */
-	(*qp->h_open_p).erase((*qp->h_open_p).begin(), (*qp->h_open_p).begin() + real_copies);
+	qps[queue_i].h_open.erase(qps[queue_i].h_open.begin(), qps[queue_i].h_open.begin() + real_copies);
 	/* TODO: Make sure this portion of code is correct!!!! */
 
 
@@ -794,9 +788,9 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, no
 		if (queue_i == queue_j) continue;
 		std::vector<int> erase_indices;
 		for (int i = 0; i < real_copies; i++) {
-			for (int j = 0; j < (*qps[queue_j]->h_open_p).size(); j++)
+			for (int j = 0; j < qps[queue_j].h_open.size(); j++)
 			{
-				if (h_open_array[i].behaviorIdx == (*qps[queue_j]->h_open_p)[j].behaviorIdx) {
+				if (h_open_array[i].behaviorIdx == qps[queue_j].h_open[j].behaviorIdx) {
 					erase_indices.push_back(j);
 					break;
 				}
@@ -809,7 +803,7 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, no
 		{
 			//printf("erase_indices[%d] is %d\n", k, erase_indices[k]);
 
-			(*qps[queue_j]->h_open_p).erase((*qps[queue_j]->h_open_p).begin() + erase_indices[k]);
+			qps[queue_j].h_open.erase(qps[queue_j].h_open.begin() + erase_indices[k]);
 		}
 		
 	}
@@ -835,14 +829,17 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, no
 
 	/* Update open list with expanded nodes and update best_node */
 	for (int ind = 0; ind < real_copies * DIR; ind++)
-	{
-		if (h_expanded[ind].isEmpty == 0 && h_expanded[ind].reached_destination == 0)
-		{
+	{ 
+    /* Debuggin */
+   if (h_expanded[ind].isEmpty == 0 && h_expanded[ind].reached_destination == 0)
+	 {
+      //printf("After Kernel>>>>> [%d].F = %f, .behaviorIdx = %llu\n", 
+      //      ind, h_expanded[ind].F, h_expanded[ind].behaviorIdx);
+		
+	
 			node curr = h_expanded[ind];
 			float distance_to_goal = curr.F - curr.G;
-			if(distance_to_goal < best_attempt->F - best_attempt->G) 
-				memcpy(best_attempt, &curr, sizeof(node));
-			//printf("IN HOST SEQUENCE_NUMEL IS %d\n", curr.sequence_numel);
+  		if(distance_to_goal < best_attempt->F - best_attempt->G) memcpy(best_attempt, &curr, sizeof(node));
 			updateQueues(qps, curr, param, queue_i);
 		}
 		else if (h_expanded[ind].isEmpty == 0 && h_expanded[ind].reached_destination == 1
@@ -863,20 +860,20 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, no
 
 	for (int i = 0; i < param->q_count; i++)
 	{
-		printf("Queue%d size is %d\n", i, (*qps[i]->h_open_p).size());
+		printf("Queue%d size is %d\n", i, qps[i].h_open.size());
 	}
 
 
 	/* Sort the open_list */
-	for (int i = 0; i < qps.size(); i++)
+	for (int i = 0; i < QUEUE_SIZE; i++)
 	{
-		std::sort((*qps[i]->h_open_p).begin(), (*qps[i]->h_open_p).end(), [](node left, node right) {return left.F < right.F; });
+		std::sort(qps[i].h_open.begin(), qps[i].h_open.end(), [](node left, node right) {return left.F < right.F; });
 	}
 
 
 
 	/* Prepare for next iteration */
-	qp->iteration++;
+	qps[queue_i].iteration++;
 	delete(h_open_array);
 	cudaFree(d_expanded);
 	cudaFree(d_open);
@@ -890,14 +887,14 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 	int robot_index = threadIdx.x;
 	/* Error checking */
 	if (robot_index >= d_param->N) return;
-
+	
 	if (robot_index == 0) {
 		memcpy(d_poses[0].robot_pos, d_param->robot_pos, sizeof(float)*d_param->N * 3);
 		printf("Inside k_noSMHA!!!!\n");
 		printf("SEQUENCE NUMEL IS %d\n", d_result->sequence_numel);
 	}
 	__syncthreads();
-
+	
 	/* Expand the nodes */
 	float dt = d_param->dt;
 	float ti = d_param->ti;
@@ -917,6 +914,7 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 		dstart = ti + dstart + dend;
 		dend = d_param->time_array[i];
 		if(i == 0) steps = (int) d_param->time_array[i] / dt;
+		else if(i == sequence_count - 1) steps = (int) (tf - d_param->time_array[i-1]) / dt;
 		else steps = (int) (d_param->time_array[i] - d_param->time_array[i-1]) / dt;
 		for (int j = 1; j <= steps; j++)
 		{
@@ -934,7 +932,7 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 			memcpy(&d_local, d_result, sizeof(node));
 			d_poses_index++;
 		}
-		d_sequence_end_indices[i] = d_poses_index - 1;
+		d_sequence_end_indices[i] = d_poses_index;
 	}
 	return;
 }
@@ -950,15 +948,9 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 		printf("%f ", param->time_array[i]);
 	}
 	printf("\n");
-	printf("printing the sequences....\n");
-	for(int i = 0; i < param->time_array_count; i++)
-	{
-		printf("%s ", behavior_array[param->sequence_array[i]]);
-	}
-	printf("\n");
-	
+
 	printf("checking result node also.... sequence_numel is %d\n", result_node.sequence_numel);
-	for(int i = 0; i < param->time_array_count; i++)
+	for(int i = 0; i < param->time_array_count + 1; i++)
 	{
 		printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
 	}
@@ -986,9 +978,9 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	/* Allocate space on device for sequence_end_indices array, cost_of_path, is_valid_path */
 	float cost_of_path = 0;
 	int is_valid_path = 0;
-	int* h_sequence_end_indices = new int[param->time_array_count];
+	int* h_sequence_end_indices = new int[param->time_array_count + 1];
 	int* d_sequence_end_indices;
-	gpuErrchk(cudaMalloc(&d_sequence_end_indices, sizeof(int) * param->time_array_count));
+	gpuErrchk(cudaMalloc(&d_sequence_end_indices, sizeof(int) * (param->time_array_count + 1)));
 
 
 
@@ -999,7 +991,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	/* Copy back from GPU to CPU */
 	cudaMemcpy(h_poses, d_poses, sizeof(POS) * h_result_size, cudaMemcpyDeviceToHost);
 	cudaMemcpy(h_sequence_end_indices, d_sequence_end_indices, 
-		   sizeof(int) * param->time_array_count, cudaMemcpyDeviceToHost);
+		   sizeof(int) * (param->time_array_count + 1), cudaMemcpyDeviceToHost);
 
 	node* h_result = new node[1];
 	cudaMemcpy(h_result, d_result, sizeof(node), cudaMemcpyDeviceToHost);
@@ -1008,7 +1000,8 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	printf("returned from kernel...\n");
 	printf("printing all necessary information to check that kernel returned correctly\n");
 	printf("Cost of path(G) = %f\n",h_result->G);
-	printf("Validity of path = %d\n", h_result->isEmpty);
+	if(h_result->isEmpty == 0) printf("PATH IS VALID\n");
+ 	else printf("PATH IS INVALID\n");
 	/*
 	for(int i = 0; i < 20; i++)
 	{
@@ -1020,7 +1013,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	*/
 
 	/* Copy all the necessary information back to return struct */
-	return_1->sequence_length = param->time_array_count;
+	return_1->sequence_length = param->time_array_count + 1;
 	return_1->cost_of_path = h_result->G;
 	if(h_result->isEmpty) return_1->is_valid_path = 0;
 	else return_1->is_valid_path = 1;
@@ -1038,6 +1031,12 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	printf("return_1->sequence_length = %d\n", return_1->sequence_length);
 	printf("return_1->cost_of_path = %f\n", return_1->cost_of_path);
 	printf("return-1->is_valid_path = %d\n", (int) return_1->is_valid_path);
+  for(int i = 0; i < return_1->sequence_length; i++)
+  {
+    printf("return_1->sequence_end_indices[%d] = %d\n", 
+            i, return_1->sequence_end_indices[i]);
+  }
+
 
 	return;
 }
@@ -1049,7 +1048,7 @@ node SMHAstar(PARAM* param, node h_start)
 	clock_t start = clock();
 	cout << "Starting IMHA star " << endl;
 
-	std::vector<Queue_p*> qps = initializeQps(param, h_start);
+	Queue* qps = initializeQps(param, h_start);
 	node result;
 	result.isEmpty = 1;
 	result.F = numeric_limits<float>::max();
@@ -1068,12 +1067,13 @@ node SMHAstar(PARAM* param, node h_start)
 	best_attempt.N = param->N;
 
 	//convert double to float for time_arra
-	while (!(*qps[0]->h_open_p).empty())
+	while (!qps[0].h_open.empty())
 	{
 		/* Exit if exceeded the amount of time */
 		clock_t end = clock();
 		float time_elapsed = float(end - start);
-		if (time_elapsed > 30000000)
+
+		if (time_elapsed > 5000000) //5 sec
 		{
 			printf("Exceeded time limit of %f (ms)", time_elapsed);
 			if(result.isEmpty && best_node_p->isEmpty) 
@@ -1083,13 +1083,23 @@ node SMHAstar(PARAM* param, node h_start)
 
 			return result;
 		}
-		
+  		
 		for (int queue_i = 1; queue_i < param->q_count; queue_i++)
 		{
 			//Since we will only have 2 queues, I will do some hardcoding
 			//If there are no elements in queue1, then just expand queue0
-			if ((*qps[queue_i]->h_open_p).empty()) {
-				node minKey_0 = (*qps[0]->h_open_p)[0];
+			if (qps[queue_i].h_open.empty()) {
+        /* For debugging purposes */
+        printf("Printing the whole queue0\n");
+        for(int i = 0; i < qps[0].h_open.size(); i++)
+        {
+          printf("[%d].F = %f, .sequence_numel = %d .behaviorIdx = %llu \n", i, 
+            qps[0].h_open[i].F, qps[0].h_open[i].sequence_numel, 
+						qps[0].h_open[i].behaviorIdx);
+        }                                 //}				
+
+
+        node minKey_0 = qps[0].h_open[0];
 				
 				printf("minKey_0.F %f \n", minKey_0.F);
 				printf("best_i.G %f\n", best_node_p->G);
@@ -1101,17 +1111,14 @@ node SMHAstar(PARAM* param, node h_start)
 					{
 						printf("DONE WITH SEARCH!! NOW PRINTING RESULTS\n");
 						printf("Current best node cost %f, sequence_numel is %d\n", best_node_p->G, best_node_p->sequence_numel);
-						//print_behavior_sequence(*qps[0]->closed_dict_p, *qps[0]->expanded_number_per_iter_p, qps[0]->best_node);
 						print_distance_left(*best_node_p, param);
 
 						printf("printing sequence...\n");
 						for (int i = 0; i < best_node_p->sequence_numel; i++)
 						{
 							int index = best_node_p->behaviorIndices[i];
-							//printf("hello world????\n");
 							printf("%s, ", behavior_array[index]);
-							//printf("%d ", index);
-						}
+	  	 			}
 						printf("\n");
 
 						memcpy(&result, best_node_p, sizeof(node));
@@ -1126,23 +1133,10 @@ node SMHAstar(PARAM* param, node h_start)
 				{
 					expandStates(qps, param, best_node_p, &best_attempt, 0);
 				}
-
-				///////////////////////
-
-				//Need to check if best_node has been updated; if so, go with the best node
-				/*
-				printf("queue %d is empty\n", queue_i);
-				for (int queue_j = 0; queue_j < param->q_count; queue_j++)
-				{
-					if (qps[queue_j]->best_node.isEmpty == 0 && qps[queue_j]->best_node.F < result.F) memcpy(&result, &(qps[queue_j]->best_node), sizeof(node));
-				}
-
-				return result;
-				*/
 			}
 			else {
-				node minKey_i = (*qps[queue_i]->h_open_p)[0];
-				node minKey_0 = (*qps[0]->h_open_p)[0];
+				node minKey_i = qps[queue_i].h_open[0];
+				node minKey_0 = qps[0].h_open[0];
 
 				/* Debugging purposes.... */
 
@@ -1152,7 +1146,6 @@ node SMHAstar(PARAM* param, node h_start)
 				if (minKey_i.F <= param->H2 * minKey_0.F)
 				{
 					printf("QUEUE %d!!!\n", queue_i);
-					//print_map(minKey_i, param);
 					if (best_node_p->G <= minKey_i.F)
 					{
 						if (best_node_p->G < numeric_limits<float>::max())
@@ -1165,14 +1158,10 @@ node SMHAstar(PARAM* param, node h_start)
 							for (int i = 0; i < best_node_p->sequence_numel; i++)
 							{
 								int index = best_node_p->behaviorIndices[i];
-								//printf("%d ", index);
-								//printf("hello world?");
 								printf("%s, ", behavior_array[index]);
 							}
 							printf("\n");
 
-
-							//print_behavior_sequence(*qps[queue_i]->closed_dict_p, *qps[queue_i]->expanded_number_per_iter_p, qps[queue_i]->best_node);
 							print_distance_left(*best_node_p, param);
 
 							memcpy(&result, best_node_p, sizeof(node));
@@ -1191,23 +1180,19 @@ node SMHAstar(PARAM* param, node h_start)
 				else
 				{
 					printf("queue 0!!!\n");
-					//print_map(minKey_0, param);
 					if (best_node_p->G <= minKey_0.F)
 					{
 						if (best_node_p->G < numeric_limits<float>::max())
 						{
 							printf("DONE WITH SEARCH!! NOW PRINTING RESULTS\n");
 							printf("Current best node cost %f, sequence_numel is %d\n", best_node_p->G, best_node_p->sequence_numel);
-							//print_behavior_sequence(*qps[0]->closed_dict_p, *qps[0]->expanded_number_per_iter_p, qps[0]->best_node);
 							print_distance_left(*best_node_p, param);
 
 							printf("printing sequence...\n");
 							for (int i = 0; i < best_node_p->sequence_numel; i++)
 							{
 								int index = best_node_p->behaviorIndices[i];
-								//printf("hello world????\n");
 								printf("%s, ", behavior_array[index]);
-								//printf("%d ", index);
 							}
 							printf("\n");
 
@@ -1245,8 +1230,6 @@ node SMHAstar(PARAM* param, node h_start)
 		for (int i = 0; i < result.sequence_numel; i++)
 		{
 			int index = result.behaviorIndices[i];
-			//printf("%d ", index);
-			//printf("hello world?");
 			printf("%s, ", behavior_array[index]);
 		}
 		printf("\n");
@@ -1403,7 +1386,7 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 		&result_node.robot_pos[0][0]);
 
 	printf("checking the sequence before entering noSMHAstar...\n");
-	printf("result_node sequence count is &d\n", result_node.sequence_numel);
+	printf("result_node sequence count is %d\n", result_node.sequence_numel);
 	for(int i = 0; i < result_node.sequence_numel; i++)
 	{
 		printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
@@ -1470,12 +1453,19 @@ void initialize_parameters(PARAM* param, std::vector<double> time_array, std::ve
 
 	param->time_array_count = time_array.size();
 	int fix_count = 0;
+	printf("Inside initialize_params....\n");
+	printf("Length of time_array is %d, Length of sequence is %d\n", time_array.size(), sequence_array.size());
+
 	for(int i = 0; i < time_array.size(); i++)
 	{
 		param->time_array[i] = (float) time_array[i];
+	}
+	for(int i = 0; i < sequence_array.size(); i++)
+	{
 		param->sequence_array[i] = (int) sequence_array[i];
 		if((int) fix_array[i] == 1) fix_count++;
 	}
+
 	param->fix_count = fix_count;
 	return;
 }
@@ -1704,13 +1694,12 @@ void initialize_result(node* result_node, PARAM* param)
 {
 	result_node->isEmpty = 1;
 	result_node->N = param->N;
-	result_node->sequence_numel = param->time_array_count;
+	result_node->sequence_numel = param->time_array_count + 1;
 	memcpy(&result_node->robot_pos[0][0], &param->robot_pos[0][0], sizeof(float) * param->N * 3);
 	result_node->F = param->H * h_calculate_H1(result_node->robot_pos, param, result_node->N);
 	result_node->G = 0;
 	result_node->reached_destination = 0;
 	memcpy(&result_node->behaviorIndices, &param->sequence_array, sizeof(int)*SEQ_MAX);
-	result_node->sequence_numel = param->time_array_count;
 	return;
 }
 
@@ -1725,11 +1714,12 @@ RETURN testmain(int isAided, std::vector<double> time_array, std::vector<long in
 	fix_robot_positions(param);
 	fix_obstacle_positions(param);
 
-	node result_node;
-	initialize_result(&result_node, param);
-	
+
 	if(isAided) SMHAstar_wrapper(param, &return_1);
 	else {
+		node result_node;
+		initialize_result(&result_node, param);
+	
 		noSMHAstar(param, &return_1, result_node);
 		//printf("after returning from noSMHAstar function....\n");
 		//printf("return_1 cost_of_path = %f\n", return_1.cost_of_path);

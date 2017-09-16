@@ -1,3 +1,3 @@
-float64[] x
-float64[] y
-float64[] r
+float32[] x
+float32[] y
+float32[] r

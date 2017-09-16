@@ -88,7 +88,13 @@ MyViz::MyViz( QWidget* parent )
 
   // Configure the GridDisplay the way we like it.
   grid_->subProp( "Line Style" )->setValue( "Billboards" );
-  grid_->subProp( "Color" )->setValue( Qt::yellow );
+  grid_->subProp( "Color" )->setValue( QColor(Qt::yellow) );
+
+  //Create another Display
+  points_ = manager_->createDisplay( "rviz/Pose", "Pose", true);
+  points_->subProp("Topic")->setValue("/hello/world");
+  points_->subProp("Color")->setValue( QColor(Qt::blue) );
+  //TODO: Might also need to set the frame_id since message gives it
 
   // Initialize the slider values.
   thickness_slider->setValue( 25 );

@@ -9,10 +9,12 @@ int main(int argc, char **argv)
     ros::init( argc, argv, "myviz", ros::init_options::AnonymousName );
   }
 
+  ros::NodeHandle n;
+
   QApplication app( argc, argv );
 
   MyViz* myviz = new MyViz();
-  myviz->show();
+  myviz->showMaximized();
 
   app.exec();
 

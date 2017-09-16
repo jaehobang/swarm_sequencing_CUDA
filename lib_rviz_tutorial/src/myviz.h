@@ -14,7 +14,7 @@
  *       contributors may be used to endorse or promote products derived from
  *       this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+i* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
@@ -30,6 +30,7 @@
 #define MYVIZ_H
 
 #include <QWidget>
+#include "geometry_msgs/PoseStamped.h"
 
 namespace rviz
 {
@@ -55,6 +56,7 @@ private:
   rviz::VisualizationManager* manager_;
   rviz::RenderPanel* render_panel_;
   rviz::Display* grid_;
+  rviz::Display* points_;
 };
 // END_TUTORIAL
 #endif // MYVIZ_H

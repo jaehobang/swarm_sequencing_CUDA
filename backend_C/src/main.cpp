@@ -35,7 +35,7 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
     ROS_INFO("Too many switch times selected....\n");
     return;
   }
-  if(isAided == 0 && sequence_array.size() != time_array.size())
+  if(isAided == 0 && sequence_array.size() != time_array.size() + 1)
   {
     ROS_INFO("Number of switch times does not match number of sequence for unaided case....\n");
     return;
@@ -45,7 +45,16 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
   custom_messages::C2R c2r;
   custom_messages::POS pos;
   
+  for(int i = 0; i < return_struct.sequence_end_indices.size(); i++)
+  {
+    printf("sequence_end_indices for [%d] is %d\n", i,
+      return_struct.sequence_end_indices[i]);
+  }
+
+
   int pos_size = return_struct.sequence_end_indices[return_struct.sequence_end_indices.size() - 1] + 1;
+
+  printf("inside main.cpp printing pos_size %d\n", pos_size);
 
   for(int i = 0; i < pos_size; i++)
   {

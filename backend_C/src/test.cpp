@@ -21,6 +21,7 @@ int main(int argc, char** argv)
     r2c.sequence_array.push_back(0);
     r2c.sequence_array.push_back(1);
     r2c.sequence_array.push_back(2);
+    r2c.sequence_array.push_back(3);
     r2c.isFixed.push_back(1);
     r2c.isFixed.push_back(1);
     r2c.isFixed.push_back(1);
