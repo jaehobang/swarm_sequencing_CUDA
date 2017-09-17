@@ -14,7 +14,9 @@ int main(int argc, char **argv)
   QApplication app( argc, argv );
 
   MyViz* myviz = new MyViz();
-  myviz->showMaximized();
+  myviz->setNodeHandle(n);
+  myviz->resize(700, 700);
+  myviz->show();
 
   app.exec();
 

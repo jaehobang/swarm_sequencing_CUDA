@@ -1,9 +1,15 @@
 #ifndef MYVIZ_H
 #define MYVIZ_H
 
-#include <QWidget>
+#include <QtWidgets>
 #include "ros/ros.h"
 #include <string>
+
+#include "timerwidget.h"
+#include "sequencewidget.h"
+#include "switchtimewidget.h"
+#include "consolewidget.h"
+#include "consolewidget1.h"
 
 #include "custom_messages/POS.h"
 #include "custom_messages/R2C.h"
@@ -11,6 +17,10 @@
 #include "custom_messages/C2R.h"
 #include "geometry_msgs/PoseArray.h"
 #include "geometry_msgs/Pose.h"
+
+#define EVENT_SCREEN 0
+#define EVENT_BUTTON 1
+#define EVENT_TRAJ 2
 
 using namespace std;
 
@@ -35,10 +45,17 @@ public:
 private Q_SLOTS:
   //void setThickness( int thickness_percent );
   //void setCellSize( int cell_size_percent );
-  void sendR2C();
-
+  void generate();
+  void next();
+  void timerDone();
 
 private:
+  TimerWidget* tw;
+  SequenceWidget* sw;
+  SwitchTimeWidget* stw;
+  ConsoleWidget1* cw;
+  QPushButton* gb;
+  QPushButton* nb;
   rviz::VisualizationManager* manager_;
   rviz::RenderPanel* render_panel_;
   rviz::Display* trajectory_;

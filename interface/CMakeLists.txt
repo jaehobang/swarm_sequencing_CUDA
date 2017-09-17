@@ -138,6 +138,18 @@ set(SOURCE_FILES
   src/myviz.cpp
   src/main.cpp
   src/myviz.h
+  src/consolewidget.h
+  src/consolewidget.cpp
+  src/consolewidget1.h
+  src/consolewidget1.cpp
+  src/sequencewidget.h
+  src/sequencewidget.cpp
+  src/switchtimewidget.h
+  src/switchtimewidget.cpp
+  src/timer.h
+  src/timer.cpp
+  src/timerwidget.h
+  src/timerwidget.cpp
 )
 
 

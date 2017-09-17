@@ -120,7 +120,7 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
 		col_event = "Generated path is ";
 		if(msg->is_valid_path) col_event += "valid";
 		else col_event += "invalid";
-		col_cost = msg->cost_of_path;
+		col_cost = std::to_string(msg->cost_of_path);
 	}
 
 	myfile << "NAME, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME\n";
@@ -139,7 +139,7 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
 int main(int argc, char** argv)
 {
 
-	myfile.open("backend_D.csv");
+	myfile.open("/home/jaeho-linux/hri2017/src/backend_D/data_storage/backend_D.csv", fstream::app);
 
 
 	ros::init(argc, argv, "backend_D");

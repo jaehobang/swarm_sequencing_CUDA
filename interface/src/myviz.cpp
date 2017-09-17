@@ -1,21 +1,18 @@
-#include <QSlider>
-#include <QLabel>
-#include <QGridLayout>
-#include <QVBoxLayout>
-#include <QPushButton>
+#include <QtWidgets>
+#include "timerwidget.h"
+#include "sequencewidget.h"
+#include "consolewidget.h"
+#include "consolewidget1.h"
+#include "myviz.h"
+
 
 #include "rviz/visualization_manager.h"
 #include "rviz/render_panel.h"
 #include "rviz/display.h"
 
-#include "myviz.h"
 
-// BEGIN_TUTORIAL
-// Constructor for MyViz.  This does most of the work of the class.
-MyViz::MyViz( QWidget* parent)
-  : QWidget( parent )
+MyViz::MyViz( QWidget* parent) : QWidget( parent )
 {
-
   //Deal with Ros related stuff first
   ROS_INFO("starting interface_node...\n");
   ic_publisher = n.advertise<custom_messages::R2C>("/hsi/R2C", 1000);
@@ -23,43 +20,45 @@ MyViz::MyViz( QWidget* parent)
   i_publisher = n.advertise<geometry_msgs::PoseArray>("/hsi/interface", 1000);
   i_subscriber = n.subscribe<custom_messages::C2R>("/hsi/C2R", 1000, &MyViz::callBack, this);
   pa.header.seq = 0;
-  pa.header.frame_id = "global";
-  // Construct and lay out labels and slider controls.
-  /*
-  QLabel* thickness_label = new QLabel( "Line Thickness" );
-  QSlider* thickness_slider = new QSlider( Qt::Horizontal );
-  thickness_slider->setMinimum( 1 );
-  thickness_slider->setMaximum( 100 );
-  QLabel* cell_size_label = new QLabel( "Cell Size" );
-  QSlider* cell_size_slider = new QSlider( Qt::Horizontal );
-  cell_size_slider->setMinimum( 1 );
-  cell_size_slider->setMaximum( 100 );
-  */
-  QPushButton* start_button = new QPushButton("My Button", this);
-  start_button->setGeometry(QRect(QPoint(100,100), QSize(200, 50)));
-  start_button->setText("Start");
-  start_button->resize(100,100);
-  
-  QGridLayout* controls_layout = new QGridLayout();
-  //controls_layout->addWidget( thickness_label, 0, 0 );
-  //controls_layout->addWidget( thickness_slider, 0, 1 );
-  //controls_layout->addWidget( cell_size_label, 1, 0 );
-  //controls_layout->addWidget( cell_size_slider, 1, 1 );
-  controls_layout->addWidget(start_button, 2, 0);
+  pa.header.frame_id = "map";
 
-  // Construct and lay out render panel.
+
+  tw = new TimerWidget(this);
+  sw = new SequenceWidget(this);
+  stw = new SwitchTimeWidget(this);
+  cw = new ConsoleWidget1(this);
+
+  gb = new QPushButton(QApplication::translate("childwidget", "Generate"), this);
+  nb = new QPushButton(QApplication::translate("childwidget", "Next"), this); 
+
   render_panel_ = new rviz::RenderPanel();
-  QVBoxLayout* main_layout = new QVBoxLayout;
-  main_layout->addLayout( controls_layout );
-  main_layout->addWidget( render_panel_ );
 
-  // Set the top-level layout for this MyViz widget.
-  setLayout( main_layout );
+  tw->setFixedSize(QSize(400, 50));
+  sw->setFixedSize(QSize(400, 400));
+  stw->setFixedSize(QSize(400, 70));
+  cw->setFixedSize(QSize(800, 120));
 
-  // Make signal/slot connections.
-  //connect( thickness_slider, SIGNAL( valueChanged( int )), this, SLOT( setThickness( int )));
-  //connect( cell_size_slider, SIGNAL( valueChanged( int )), this, SLOT( setCellSize( int )));
-  connect(start_button, SIGNAL(released()), this, SLOT(sendR2C()));
+
+  connect(tw, SIGNAL(signalDone()), this, SLOT(timerDone()));
+
+  QVBoxLayout* col1 = new QVBoxLayout();
+  col1->addWidget(render_panel_);
+  col1->addWidget(cw);
+  
+  QHBoxLayout* rowTmp = new QHBoxLayout();
+  rowTmp->addWidget(gb);
+  rowTmp->addWidget(nb);
+
+  QVBoxLayout* col2 = new QVBoxLayout();
+  col2->addWidget(tw);
+  col2->addWidget(sw);
+  col2->addWidget(stw);
+  col2->addLayout(rowTmp);
+
+  QHBoxLayout* row = new QHBoxLayout();
+  row->addLayout(col1);
+  row->addLayout(col2);
+  this->setLayout(row);
 
 
   // Next we initialize the main RViz classes.
@@ -73,23 +72,12 @@ MyViz::MyViz( QWidget* parent)
   manager_->initialize();
   manager_->startUpdate();
 
-  // Create a Grid display.
   trajectory_ = manager_->createDisplay( "rviz/PoseArray", "Trajectory Topic", true );
   ROS_ASSERT( trajectory_ != NULL );
 
-  // Configure the GridDisplay the way we like it.
-  //grid_->subProp( "Line Style" )->setValue( "Billboards" );
-  //grid_->subProp( "Color" )->setValue( QColor(Qt::blue) );
   trajectory_->subProp("Topic")->setValue("/hsi/interface");
 
 
-  // Initialize the slider values.
-  //thickness_slider->setValue( 25 );
-  //cell_size_slider->setValue( 10 );
-
-
-  //TODO: Not sure if I can do this and everything else will function 
-  //ros::spin();
   ROS_INFO("Reached the end of myViz constructor");
 
 }
@@ -100,34 +88,19 @@ MyViz::~MyViz()
   delete manager_;
 }
 
-// This function is a Qt slot connected to a QSlider's valueChanged()
-// signal.  It sets the line thickness of the grid by changing the
-// grid's "Line Width" property.
-/*
-void MyViz::setThickness( int thickness_percent )
+void MyViz::timerDone()
 {
-  if( grid_ != NULL )
-  {
-    grid_->subProp( "Line Style" )->subProp( "Line Width" )->setValue( thickness_percent / 100.0f );
-  }
+  //TODO:
+  //1. Make a popup screen that says Timer has reached zero and will be moving on to the next map
+  //2. When user closes that window call this->next();
+  return;
 }
 
 
-// This function is a Qt slot connected to a QSlider's valueChanged()
-// signal.  It sets the cell size of the grid by changing the grid's
-// "Cell Size" Property.
-void MyViz::setCellSize( int cell_size_percent )
-{
-  if( grid_ != NULL )
-  {
-    grid_->subProp( "Cell Size" )->setValue( cell_size_percent / 10.0f );
-  }
-}
-*/
 
-void MyViz::sendR2C()
+void MyViz::generate()
 {  
-   ROS_INFO("Start button release detected...sending R2C message\n");
+   ROS_INFO("Inside function generate()...sending R2C message\n");
    custom_messages::R2C r2c;
    r2c.stamp = ros::Time::now();
    r2c.isAided = 1; //0 is unaided
@@ -146,6 +119,18 @@ void MyViz::sendR2C()
    ros::spinOnce();
 
    return;
+}
+
+void MyViz::next()
+{
+    //Reset everything for every component and update the map to the next one
+    tw->reset();
+		sw->reset();
+		stw->reset();
+		cw->reset();
+		
+		//TODO: update map and also reset the trajectory (RVIZ)
+		return;
 }
 
 void MyViz::setNodeHandle(ros::NodeHandle nn)
@@ -174,6 +159,9 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   pa.header.seq = 0;
 
   //2. Visualize
+  ros::Rate i_rate(10);
+  
+
   for(int i = 0; i < robot_positions.size(); i++)
   {
     pa.header.seq += 1;
@@ -189,17 +177,20 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
       p.position.z = 0;
       pa.poses.push_back(p);
     }
-    i_publisher.publish(pa);
-
- 
+    i_publisher.publish(pa); 
+    ros::spinOnce();
+    i_rate.sleep();
   }
 
   //3. Send to D
   custom_messages::R2D r2d;
   r2d.stamp = ros::Time::now();
-  r2d.event_type = 2; //2 = trajectory information
+  r2d.event_type = EVENT_TRAJ; //2 = trajectory information
   r2d.cost_of_path = cost_of_path;
   r2d.is_valid_path = is_valid_path;
+  r2d.is_train = 1;
+  r2d.map_number = 20;
+  r2d.name = "Tom";
   for(int i = 0; i < sequence_names.size(); i++)
   {
     r2d.behavior_sequences.push_back(behavior_array[sequence_names[i]]);
