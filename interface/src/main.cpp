@@ -1,9 +1,29 @@
 #include <QApplication>
 #include <ros/ros.h>
 #include "myviz.h"
+#include "popupwidget.h"
+#include "customapplication.h"
 
 int main(int argc, char **argv)
 {
+  /*
+
+  QApplication app( argc, argv );
+
+  string name = "Tom";
+  uint8_t isAided = 1;
+
+  MyViz* myviz = new MyViz();
+  myviz->setNodeHandle(n);
+  myviz->setNameAndAided(name, isAided);
+  myviz->resize(700, 700);
+  myviz->show();
+
+  app.exec();
+
+  delete myviz;
+  */
+
   if( !ros::isInitialized() )
   {
     ros::init( argc, argv, "myviz", ros::init_options::AnonymousName );
@@ -11,14 +31,9 @@ int main(int argc, char **argv)
 
   ros::NodeHandle n;
 
-  QApplication app( argc, argv );
 
-  MyViz* myviz = new MyViz();
-  myviz->setNodeHandle(n);
-  myviz->resize(700, 700);
-  myviz->show();
-
+  MyApplication app(argc, argv);
+  app.setNodeHandler(n);
   app.exec();
 
-  delete myviz;
 }

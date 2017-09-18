@@ -5,7 +5,7 @@
 SwitchTimeWidget::SwitchTimeWidget(QWidget *parent) : QWidget( parent )
 {
     switchtime_label = new QLabel("Input Switch Times Below(0 - 50.0):", this);
-    switchtime_text = new QLineEdit("ex)5.1, 9.9, 21.3", this); /* sequence_text->text() -- retrieves the text
+    switchtime_text = new QLineEdit("ex)5.1,9.9,21.3", this); /* sequence_text->text() -- retrieves the text
                                        sequence_text->setText("adsfadf") -- sets the text */
 
 
@@ -26,6 +26,6 @@ QString SwitchTimeWidget::getInfo()
 
 void SwitchTimeWidget::reset()
 {
-    switchtime_text->setText("ex)5.1, 9.9, 21.3");
+    switchtime_text->setText("ex)5.1,9.9,21.3");
 		return;
 }

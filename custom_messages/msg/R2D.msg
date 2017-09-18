@@ -5,6 +5,7 @@ string button_name
 float32 cost_of_path
 bool is_valid_path
 bool is_train
+bool is_aided
 int32 map_number
 string name #name of person who is doing the experiment
 float32[] switch_times

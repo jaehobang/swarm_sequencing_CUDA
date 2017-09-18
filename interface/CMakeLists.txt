@@ -150,6 +150,11 @@ set(SOURCE_FILES
   src/timer.cpp
   src/timerwidget.h
   src/timerwidget.cpp
+  src/popupwidget.h
+  src/popupwidget.cpp
+  src/customapplication.h
+  src/customapplication.cpp
+
 )
 
 

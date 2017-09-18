@@ -4,7 +4,7 @@
 #include "custom_messages/POS.h"
 #include "smha_headers.hpp"
 
-RETURN testmain(int isAided, std::vector<double> time_array, std::vector<long int> sequence_array, std::vector<uint8_t> isFixed);
+RETURN testmain(int isAided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed);
 //int testmain();
 RETURN return_struct; //I hope it knows where to find this......
 ros::Publisher c_publisher;
@@ -25,8 +25,8 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
   ROS_INFO("backend_C_node callback called...\n");
   
   int isAided = (int) msg->isAided;
-  std::vector<double> time_array = msg->time_array;
-  std::vector<long int> sequence_array = msg->sequence_array;
+  std::vector<float> time_array = msg->time_array;
+  std::vector<int> sequence_array = msg->sequence_array;
   std::vector<uint8_t> isFixed = msg->isFixed;
 
 

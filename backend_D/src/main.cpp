@@ -14,6 +14,7 @@ string button_name
 float64 cost_of_path
 bool is_valid_path
 bool is_train
+bool is_aided
 int64 map_number
 int[] switch_times
 string[] behavior_sequences
@@ -41,6 +42,7 @@ using namespace std;
 ofstream myfile;
 int iteration = 0; //when user start, it will be 1. So first attempt is 1st iteration
 int isTraining = 0;
+uint8_t isAided = 2;
 int map_num = 0; //1st map they encounter is map1
 string name = "";
 
@@ -63,6 +65,7 @@ string name = "";
 void callBack(const custom_messages::R2D::ConstPtr& msg)
 {
 	string col_name = ""; //NAME
+  string col_aided = "";
 	string col_train = ""; //TRAIN OR TEST
 	string col_map = ""; //Map number
 	string col_iter = ""; //Map iteration
@@ -78,6 +81,11 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
 		name = msg->name;
 		col_name = msg->name;
 	}
+  if(isAided != msg->is_aided){
+    isAided = msg->is_aided;
+    if(isAided == 1) col_aided = "aided";
+    else col_aided = "unaided";
+  }
 	if(msg->is_train != isTraining) {
 		isTraining = msg->is_train;
 		if(isTraining == 0) col_train = "test";
@@ -123,8 +131,8 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
 		col_cost = std::to_string(msg->cost_of_path);
 	}
 
-	myfile << "NAME, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME\n";
-	string row = col_name + "," + col_train + "," + col_map + "," + col_iter + "," + col_event + ","
+	myfile << "NAME, AIDED VS UNAIDED, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME\n";
+	string row = col_name + "," + col_aided + "," + col_train + "," + col_map + "," + col_iter + "," + col_event + ","
 				+ col_cost + "," + col_time + "\n";
 	myfile << row;
 	myfile.close();

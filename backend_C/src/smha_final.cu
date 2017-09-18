@@ -1073,7 +1073,7 @@ node SMHAstar(PARAM* param, node h_start)
 		clock_t end = clock();
 		float time_elapsed = float(end - start);
 
-		if (time_elapsed > 5000000) //5 sec
+		if (time_elapsed > 20000000) //10 sec
 		{
 			printf("Exceeded time limit of %f (ms)", time_elapsed);
 			if(result.isEmpty && best_node_p->isEmpty) 
@@ -1090,14 +1090,14 @@ node SMHAstar(PARAM* param, node h_start)
 			//If there are no elements in queue1, then just expand queue0
 			if (qps[queue_i].h_open.empty()) {
         /* For debugging purposes */
-        printf("Printing the whole queue0\n");
+       /* printf("Printing the whole queue0\n");
         for(int i = 0; i < qps[0].h_open.size(); i++)
         {
-          printf("[%d].F = %f, .sequence_numel = %d .behaviorIdx = %llu \n", i, 
-            qps[0].h_open[i].F, qps[0].h_open[i].sequence_numel, 
-						qps[0].h_open[i].behaviorIdx);
+          //printf("[%d].F = %f, .sequence_numel = %d .behaviorIdx = %llu \n", i, 
+          //  qps[0].h_open[i].F, qps[0].h_open[i].sequence_numel, 
+				//		qps[0].h_open[i].behaviorIdx);
         }                                 //}				
-
+				*/
 
         node minKey_0 = qps[0].h_open[0];
 				
@@ -1408,7 +1408,7 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void initialize_parameters(PARAM* param, std::vector<double> time_array, std::vector<long int>sequence_array, std::vector<uint8_t> fix_array)
+void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vector<int>sequence_array, std::vector<uint8_t> fix_array)
 {
 	param->N = 16;
 	param->M = 3; //2
@@ -1458,11 +1458,11 @@ void initialize_parameters(PARAM* param, std::vector<double> time_array, std::ve
 
 	for(int i = 0; i < time_array.size(); i++)
 	{
-		param->time_array[i] = (float) time_array[i];
+		param->time_array[i] = time_array[i];
 	}
 	for(int i = 0; i < sequence_array.size(); i++)
 	{
-		param->sequence_array[i] = (int) sequence_array[i];
+		param->sequence_array[i] = sequence_array[i];
 		if((int) fix_array[i] == 1) fix_count++;
 	}
 
@@ -1474,7 +1474,7 @@ void initialize_parameters(PARAM* param, std::vector<double> time_array, std::ve
 
 void fix_robot_positions(PARAM* param)
 {
-	param->N = 16;
+	param->N = 10;
 	param->robot_pos[0][0] = -18;
 	param->robot_pos[0][1] = -10;
 	param->robot_pos[0][2] = 0;
@@ -1703,7 +1703,7 @@ void initialize_result(node* result_node, PARAM* param)
 	return;
 }
 
-RETURN testmain(int isAided, std::vector<double> time_array, std::vector<long int> sequence_array, std::vector<uint8_t> isFixed)
+RETURN testmain(int isAided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed)
 {
 	printf("starting\n");
 	PARAM* param = new PARAM[1]; /* Allocate initial parameters on heap */
