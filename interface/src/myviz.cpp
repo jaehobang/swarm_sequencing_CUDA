@@ -394,7 +394,7 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
 	visualization_msgs::MarkerArray mk_arr;
   visualization_msgs::Marker mk;
   geometry_msgs::Point p;
-  //printf("robot_position count %d\n", robot_positions.size());
+  printf("robot_position count %d\n", robot_positions.size());
   //printf("robot count %d\n", robot_positions[0].x.size());
   //ROS_INFO("Entering outer for loop");
   for(int pos_i = 0; pos_i < robot_positions.size(); pos_i++)
@@ -414,11 +414,15 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
         mk.scale.y = 0.1;
         mk.scale.z = 0.1;
 		  	mk.lifetime = ros::Duration();
-				mk.color.r = 1.0f;
-    	  mk.color.g = 0.0f;
-     		mk.color.b = 0.0f;
-     	 	mk.color.a = 1.0;
-				mk.id = ids[robot_i];
+				QColor color = QColor( QString::fromStdString(color_array[sequence_names[0]]) );
+        int r,g,b,a;
+        color.getRgb(&r, &g, &b, &a);
+	  		mk.color.r = (float) r / 255;
+	  		mk.color.g = (float) g / 255;
+		  	mk.color.b = (float) b / 255;
+			  mk.color.a = 1.0;
+
+		  	mk.id = ids[robot_i];
 				ids[robot_i]++;
 
 				mk_arr.markers.push_back(mk);
@@ -448,6 +452,15 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
       {
 				mk_arr.markers[robot_j].points.clear();
         mk_arr.markers[robot_j].id++;
+	    	QColor color = QColor( QString::fromStdString(color_array[sequence_names[sub_i]]) );
+        int r,g,b,a;
+        color.getRgb(&r, &g, &b, &a);
+	  		mk_arr.markers[robot_j].color.r = (float) r / 255;
+	  		mk_arr.markers[robot_j].color.g = (float) g / 255;
+		  	mk_arr.markers[robot_j].color.b = (float) b / 255;
+
+
+
       }
     	ros::spinOnce();
     	i_rate.sleep();
