@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(interface)
+project(marker_tutorial)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
@@ -12,10 +12,8 @@ set(CMAKE_AUTOMOC ON)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
-  std_msgs
-  custom_messages
-  rviz
   visualization_msgs
+  rviz
 )
 
 ## System dependencies are found with CMake's conventions
@@ -75,7 +73,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   std_msgs
+#   visualization_msgs
 # )
 
 ################################################
@@ -109,8 +107,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES interface
-CATKIN_DEPENDS roscpp rospy std_msgs custom_messages rviz visualization_msgs
+#  LIBRARIES marker_tutorial
+  CATKIN_DEPENDS roscpp rospy visualization_msgs rviz
 #  DEPENDS system_lib
 )
 
@@ -125,6 +123,13 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+## Declare a C++ library
+# add_library(${PROJECT_NAME}
+#   src/${PROJECT_NAME}/marker_tutorial.cpp
+# )
+
+
+
 
 find_package(Qt5Widgets REQUIRED)
 include_directories(${Qt5Widgets_INCLUDES})
@@ -135,36 +140,21 @@ add_definitions(${Qt5Widgets_DEFINITIONS})
 
 set(CMAKE_CXX_FLAGS "${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
 
-set(SOURCE_FILES
-  src/myviz.cpp
-  src/main.cpp
-  src/myviz.h
-  src/consolewidget.h
-  src/consolewidget.cpp
-  src/consolewidget1.h
-  src/consolewidget1.cpp
-  src/sequencewidget.h
-  src/sequencewidget.cpp
-  src/switchtimewidget.h
-  src/switchtimewidget.cpp
-  src/timer.h
-  src/timer.cpp
-  src/timerwidget.h
-  src/timerwidget.cpp
-  src/popupwidget.h
-  src/popupwidget.cpp
-  src/customapplication.h
-  src/customapplication.cpp
 
+set(SOURCE FILES
+  src/main.cpp
+  src/full_panel.cpp
+  src/full_panel.h
 )
 
 
 
+add_executable(basic_shapes src/basic_shapes.cpp)
+target_link_libraries(basic_shapes ${catkin_LIBRARIES})
 
-## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/interface.cpp
-# )
+
+add_executable(panel src/main.cpp src/full_panel.cpp src/full_panel.h)
+target_link_libraries(panel ${Qt5Widgets_LIBRARIES} ${catkin_LIBRARIES})
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -174,7 +164,7 @@ set(SOURCE_FILES
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME}_node ${SOURCE_FILES})
+# add_executable(${PROJECT_NAME}_node src/marker_tutorial_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -184,14 +174,12 @@ add_executable(${PROJECT_NAME}_node ${SOURCE_FILES})
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-#add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(${PROJECT_NAME}_node
-   ${Qt5Widgets_LIBRARIES}
-   ${catkin_LIBRARIES}
- )
-
+# target_link_libraries(${PROJECT_NAME}_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -233,7 +221,7 @@ target_link_libraries(${PROJECT_NAME}_node
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_interface.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_marker_tutorial.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

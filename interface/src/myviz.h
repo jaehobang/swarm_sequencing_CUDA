@@ -18,6 +18,10 @@
 #include "custom_messages/C2R.h"
 #include "geometry_msgs/PoseArray.h"
 #include "geometry_msgs/Pose.h"
+#include "visualization_msgs/MarkerArray.h"
+#include "visualization_msgs/Marker.h"
+
+
 
 #define EVENT_SCREEN 0
 #define EVENT_BUTTON 1
@@ -69,7 +73,7 @@ private:
 
   std::vector<string> behavior_array = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
   std::vector<string> behavior_array_short = {"r", "i", "e", "n", "w", "s", "a"};
-  geometry_msgs::PoseArray pa;
+  std::vector<string> color_array = {"dark cyan", "cyan", "gray", "green", "light gray", "magneta", "dark magneta"};
   string name;
   uint8_t isAided;
   QString curr_sequence;
@@ -81,8 +85,6 @@ private:
   std::vector<int> sequenceInputConvert(QString sequence);
   std::vector<float> switchtimeInputConvert(QString switchtime);
   int iterationConvert(QString iteration);
-  void generateAided();
-  void generateUnaided();
 };
 
 // END_TUTORIAL

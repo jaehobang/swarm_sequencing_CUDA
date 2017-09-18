@@ -1024,7 +1024,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	for(int i = 0; i < return_1->sequence_length; i++)
 	{
 		return_1->sequence_end_indices.push_back(h_sequence_end_indices[i]);
-		return_1->sequence_names.push_back(param->sequence_array[i]);
+		return_1->sequence_names.push_back(result_node.behaviorIndices[i]);
 	}
 
 	printf("making sure that return struct has necessary info...\n");

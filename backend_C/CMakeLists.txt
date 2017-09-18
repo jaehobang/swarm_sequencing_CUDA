@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
 
   std_msgs
   custom_messages
+  visualization_msgs
 )
 
 
@@ -34,7 +35,7 @@ CUDA_ADD_LIBRARY(CudaLib ${LIB_TYPE} src/smha_final.cu)
 
 
 catkin_package(
-  CATKIN_DEPENDS roscpp std_msgs custom_messages
+  CATKIN_DEPENDS roscpp std_msgs custom_messages visualization_msgs
 
 )
 

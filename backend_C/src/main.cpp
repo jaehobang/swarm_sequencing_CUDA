@@ -8,7 +8,7 @@ RETURN testmain(int isAided, std::vector<float> time_array, std::vector<int> seq
 //int testmain();
 RETURN return_struct; //I hope it knows where to find this......
 ros::Publisher c_publisher;
-int N = 16;
+int N = 10;
 
 
 void callBack(const custom_messages::R2C::ConstPtr& msg)
@@ -44,7 +44,9 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
   return_struct = testmain(isAided, time_array, sequence_array, isFixed);  
   custom_messages::C2R c2r;
   custom_messages::POS pos;
-  
+	  
+
+
   for(int i = 0; i < return_struct.sequence_end_indices.size(); i++)
   {
     printf("sequence_end_indices for [%d] is %d\n", i,
@@ -76,6 +78,7 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
   c2r.sequence_end_indices = return_struct.sequence_end_indices;
   c2r.cost_of_path = return_struct.cost_of_path;
   c2r.is_valid_path = return_struct.is_valid_path;
+  printf("size of return_struct.sequence_name is %d", (int) return_struct.sequence_names.size());
   c2r.sequence_names = return_struct.sequence_names;
   
   c_publisher.publish(c2r);

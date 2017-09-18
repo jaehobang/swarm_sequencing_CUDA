@@ -1,9 +1,3 @@
-#include <QtWidgets>
-#include "timerwidget.h"
-#include "sequencewidget.h"
-#include "consolewidget.h"
-#include "consolewidget1.h"
-#include "popupwidget.h"
 #include "myviz.h"
 
 
@@ -18,12 +12,9 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   ROS_INFO("starting interface_node...\n");
   ic_publisher = n.advertise<custom_messages::R2C>("/hsi/R2C", 1000);
   id_publisher = n.advertise<custom_messages::R2D>("/hsi/R2D", 1000);
-  i_publisher = n.advertise<geometry_msgs::PoseArray>("/hsi/interface", 1000);
+  i_publisher = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
   i_subscriber = n.subscribe<custom_messages::C2R>("/hsi/C2R", 1000, &MyViz::callBack, this);
-  pa.header.seq = 0;
-  pa.header.frame_id = "map";
-
-
+  
   this->name = "";
   this->isAided = 0;
 
@@ -78,11 +69,24 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   render_panel_->initialize( manager_->getSceneManager(), manager_ );
   manager_->initialize();
   manager_->startUpdate();
-
-  trajectory_ = manager_->createDisplay( "rviz/PoseArray", "Trajectory Topic", true );
+  
+  trajectory_ = manager_->createDisplay( "rviz/MarkerArray", "Marker Array", true );
   ROS_ASSERT( trajectory_ != NULL );
 
-  trajectory_->subProp("Topic")->setValue("/hsi/interface");
+  trajectory_->subProp("Marker Topic")->setValue("visualization_marker_array");
+  trajectory_->subProp("Queue Size")->setValue(1); 
+
+  rviz::Display* grid_ = manager_->createDisplay( "rviz/Grid", "adjustable grid", true);
+  ROS_ASSERT( grid_ != NULL);
+  grid_->subProp("Plane Cell Count")->setValue(40);
+  grid_->subProp("Line Style")->setValue("Lines");
+  grid_->subProp("Plane")->setValue("XY");
+
+  rviz::Display* axes_ = manager_->createDisplay( "rviz/Axes", "xyz", true);
+  ROS_ASSERT( axes_ != NULL);
+
+  axes_->subProp("Length")->setValue(5);
+  axes_->subProp("Radius")->setValue(0.1);
 
 }
 
@@ -191,68 +195,6 @@ int MyViz::iterationConvert(QString iteration)
   bool ok;
   int i = iteration.toInt();
   return i+1;
-}
-
-void MyViz::generateAided()
-{
-	 QString sequence = sw->getInfo();
-   QString switchtime = stw->getInfo();
-   QString iteration = cw->getInfo();
-	 
-   this->curr_sequence = sequence;
-   this->curr_switchtime = switchtime;
-
-   //2. Running the input checker
-	std::vector<float> switchtime_arr = this->switchtimeInputConvert(switchtime);
-   int iter = this->iterationConvert(iteration);
-
-   //3. if invalid
-	
-   if(switchtime_arr[0] == -1){
-     //Generate a popup message and return without generating
-     QWidget* popup = new QWidget();
-     popup->setAttribute(Qt::WA_DeleteOnClose);
-     QLabel* lab = new QLabel("Switch time you generated is invalid!!\nPlease try again!");
-     QPushButton* but = new QPushButton("Close");
-
-     connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-     QVBoxLayout* layout = new QVBoxLayout();
-     layout->addWidget(lab);
-     layout->addWidget(but);
-
-     popup->setLayout(layout);
-     popup->show();
-		 return;
-   }
-
-   if(iter == -1){
-     QWidget* popup = new QWidget();
-     popup->setAttribute(Qt::WA_DeleteOnClose);
-     QLabel* lab = new QLabel("Iteration is invalid!!\nPlease try again!");
-     QPushButton* but = new QPushButton("Close");
-
-     connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-     QVBoxLayout* layout = new QVBoxLayout();
-     layout->addWidget(lab);
-     layout->addWidget(but);
-
-     popup->setLayout(layout);
-     popup->show();
-		 return;
-   }
-
-
-
-}
-
-
-
-void MyViz::generateUnaided()
-{
-
-
 }
 
 
@@ -421,41 +363,100 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   //3. Send the information to backend_D - done
 
   //Update the rviz Display Panel.... Need some researching to do....
-  ROS_INFO("backend_C_node callback called...\n");
   //1. Parse and Convert
-  std::vector<custom_messages::POS> robot_positions = msg->robot_positions;
+  std::vector<custom_messages::POS> robot_positions;
+  std::vector<int> sequence_end_indices;
+  std::vector<int> sequence_names;
   int sequence_length = msg->sequence_length;
-  std::vector<int> sequence_end_indices = msg->sequence_end_indices;
+  for(int i = 0; i < msg->robot_positions.size(); i++)
+  {
+    robot_positions.push_back(msg->robot_positions[i]);
+  }
+  for(int i = 0; i < msg->sequence_end_indices.size(); i++)
+  {
+    sequence_end_indices.push_back(msg->sequence_end_indices[i]);
+  }
+  for(int i = 0; i < msg->sequence_names.size(); i++)
+  {
+    sequence_names.push_back(msg->sequence_names[i]);
+  }
   float cost_of_path = msg->cost_of_path;
   int is_valid_path = (int) msg->is_valid_path;
-  std::vector<int> sequence_names = msg->sequence_names;  
-  pa.header.seq = 0;
+    //2. Visualize
+  ros::Rate i_rate(0.5);
 
-  //2. Visualize
-  ros::Rate i_rate(10);
-  
 
-  for(int i = 0; i < robot_positions.size(); i++)
+  //TODO: Before sending out all these messages, we should delete whatever
+  //visualization_msgs there are on rviz
+  ROS_INFO("Done parsing C2R message, now publishing marker array");
+  std::vector<int> ids;
+  int sub_i = 0;
+	visualization_msgs::MarkerArray mk_arr;
+  visualization_msgs::Marker mk;
+  geometry_msgs::Point p;
+  //printf("robot_position count %d\n", robot_positions.size());
+  //printf("robot count %d\n", robot_positions[0].x.size());
+  //ROS_INFO("Entering outer for loop");
+  for(int pos_i = 0; pos_i < robot_positions.size(); pos_i++)
   {
-    pa.header.seq += 1;
-    pa.header.stamp = ros::Time::now();
-
-    geometry_msgs::Pose p;
-    for(int j = 0 ; j < 16; j++)
+    //ROS_INFO("Entering inner for loop %d", pos_i);
+    for(int robot_i = 0 ; robot_i < robot_positions[pos_i].x.size(); robot_i++)
     {
-      // TODO: Currently the Pose doesn't have a way to represent orientation visually
-      // For now, I will not be inserting the quaternion information - remember it is in radians
-      p.position.x = robot_positions[i].x[j];
-      p.position.y = robot_positions[i].y[j];
-      p.position.z = 0;
-      pa.poses.push_back(p);
+      if(pos_i == 0) 
+			{
+				ids.push_back(0);
+      	mk.header.frame_id = "map";
+      	mk.header.stamp = ros::Time::now();
+      	mk.ns = "robot" + std::to_string(robot_i);
+        mk.type = visualization_msgs::Marker::LINE_STRIP;
+				mk.action = visualization_msgs::Marker::ADD;
+				mk.scale.x = 0.1;
+        mk.scale.y = 0.1;
+        mk.scale.z = 0.1;
+		  	mk.lifetime = ros::Duration();
+				mk.color.r = 1.0f;
+    	  mk.color.g = 0.0f;
+     		mk.color.b = 0.0f;
+     	 	mk.color.a = 1.0;
+				mk.id = ids[robot_i];
+				ids[robot_i]++;
+
+				mk_arr.markers.push_back(mk);
+			}
+      //ROS_INFO("is it x?");
+			p.x = robot_positions[pos_i].x[robot_i];
+			//ROS_INFO("is it y?");
+      p.y = robot_positions[pos_i].y[robot_i];
+      p.z = 0;
+			//ROS_INFO("is it this?");
+      mk_arr.markers[robot_i].points.push_back(p);
     }
-    i_publisher.publish(pa); 
-    ros::spinOnce();
-    i_rate.sleep();
+		//ROS_INFO("Or maybe here?");
+    if(pos_i == sequence_end_indices[sub_i]){
+      /*
+			QColor color = QColor( QString::fromStdString(color_array[sequence_names[sub_i]]) );
+      int r,g,b,a;
+      color.getRgb(&r, &g, &b, &a);
+			mk.color.r = (float) r / 255;
+			mk.color.g = (float) g / 255;
+			mk.color.b = (float) b / 255;
+			mk.color.a = 1.0;
+			*/
+		  sub_i++;
+    	i_publisher.publish(mk_arr);
+			for(int robot_j = 0; robot_j < robot_positions[pos_i].x.size(); robot_j++)
+      {
+				mk_arr.markers[robot_j].points.clear();
+        mk_arr.markers[robot_j].id++;
+      }
+    	ros::spinOnce();
+    	i_rate.sleep();
+		}
   }
 
   //3. Send to D
+  /*
+  ROS_INFO("Done with marker array now publishing R2D");
   custom_messages::R2D r2d;
   r2d.stamp = ros::Time::now();
   r2d.event_type = EVENT_TRAJ; //2 = trajectory information
@@ -469,9 +470,21 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
     r2d.behavior_sequences.push_back(behavior_array[sequence_names[i]]);
   }
   id_publisher.publish(r2d);
-  
+  */
 
   //4. Update the Console Widget
+  ROS_INFO("Done sending R2D, now updating console");
+  if(this->isAided){
+    string s = "";
+    ROS_INFO("size of sequence_names is %d", (int) sequence_names.size());
+    for(int i = 0; i < sequence_names.size(); i++)
+		{
+      ROS_INFO("i = %d, sequence_index = %d", i, sequence_names[i]);
+			s += behavior_array_short[sequence_names[i]];
+      if( i != sequence_names.size() - 1 ) s += "->";
+    }
+    this->curr_sequence = QString::fromStdString(s);
+  }
   this->curr_cost = QString::number(cost_of_path);
   if(is_valid_path == 1) this->curr_valid = "VALID";
   else this->curr_valid = "INVALID";
