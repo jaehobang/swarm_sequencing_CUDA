@@ -14,7 +14,7 @@ int main(int argc, char** argv)
   while(ros::ok()){
     custom_messages::R2C r2c;
     r2c.stamp = ros::Time::now();
-    r2c.isAided = 0; //0 is unaided
+    r2c.is_aided = 0; //0 is unaided
     std::vector<float> time_arr;
     time_arr.push_back(5);
     time_arr.push_back(10);
@@ -29,10 +29,10 @@ int main(int argc, char** argv)
     //r2c.time_array.push_back(30);
     //r2c.time_array.push_back(35);
 
-    r2c.sequence_array.push_back(3);
-    r2c.sequence_array.push_back(5);
-    r2c.sequence_array.push_back(4);
-    r2c.sequence_array.push_back(4);
+    r2c.sequence_int_array.push_back(3);
+    r2c.sequence_int_array.push_back(5);
+    r2c.sequence_int_array.push_back(4);
+    r2c.sequence_int_array.push_back(4);
     //r2c.isFixed.push_back(1);
     //r2c.isFixed.push_back(1);
     //r2c.isFixed.push_back(1);

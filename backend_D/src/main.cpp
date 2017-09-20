@@ -16,8 +16,8 @@ bool is_valid_path
 bool is_train
 bool is_aided
 int64 map_number
-int[] switch_times
-string[] behavior_sequences
+int[] time_array
+string[] sequence_string_array
 
 
 ------------------------
@@ -56,7 +56,7 @@ string name = "";
 	6. flock_east
 	7. flock_south
 	8. flock_west 
-	9. switch_times - just a thought for interface, whenever you press a location on the bar, 
+	9. time_array - just a thought for interface, whenever you press a location on the bar, 
 						a small tick appears and that i
 	*/
 	
@@ -105,9 +105,9 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
 
 	else if(msg->event_type == 1){ //button_click
 		if(msg->button_name == "generate"){
-			for(int i = 0; i < msg->behavior_sequences.size(); i++)
+			for(int i = 0; i < msg->sequence_string_array.size(); i++)
 			{
-				col_event += msg->behavior_sequences[i] + " ";
+				col_event += msg->sequence_string_array[i] + " ";
 			}
 		}
 		if(msg->button_name == "rendezvous" || "flocking" || "flock_west" || "flock_east" || "flock_south" || 
@@ -115,11 +115,11 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
 		{
 			col_event = msg->button_name;
 		}
-		if(msg->button_name == "switch_times")
+		if(msg->button_name == "time_array")
 		{
-			for(int i = 0; i < msg->switch_times.size(); i++)
+			for(int i = 0; i < msg->time_array.size(); i++)
 			{
-				col_event = std::to_string(msg->switch_times[i]) + " ";
+				col_event = std::to_string(msg->time_array[i]) + " ";
 			}
 		}
 
@@ -128,7 +128,6 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
 		col_event = "Generated path is ";
 		if(msg->is_valid_path) col_event += "valid";
 		else col_event += "invalid";
-		col_cost = std::to_string(msg->cost_of_path);
 	}
 
 	myfile << "NAME, AIDED VS UNAIDED, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME\n";

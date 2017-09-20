@@ -609,49 +609,6 @@ std::vector<float> convert_index(float mapsize, int index)
 }
 
 
-void print_map(node best_node, PARAM* param)
-{
-	/* Print location of all robots, obstacles and the target location */
-	/* Empty space is 0 */
-	/* center of Robots are 1 */
-	/* Center of Obstacles are 2 */
-	/* Center of target is 3 */
-	int map_size = (int)param->mapsize * 2 * param->mapsize * 2;
-	int* map_grid = new int[map_size];
-	for (int i = 0; i < map_size; i++) map_grid[i] = 0;
-
-	for (int i = 0; i < param->N; i++)
-	{
-		int index = convert_position(param->mapsize, best_node.robot_pos[i][0], best_node.robot_pos[i][1]);
-		map_grid[index] = 1;
-	}
-
-	for (int i = 0; i < map_size; i++)
-	{
-		std::vector<float> pos = convert_index(param->mapsize, i);
-		for (int j = 0; j < param->M; j++)
-		{
-			float norm_d = sqrt(pow(param->obstacle_pos[j][0] - pos[0], 2) + pow(param->obstacle_pos[j][1] - pos[1], 2));
-			if (norm_d <= param->obstacle_pos[j][2]) map_grid[i] = 2;
-
-			float norm_d1 = sqrt(pow(param->target_center[0] - pos[0], 2) + pow(param->target_center[1] - pos[1], 2));
-			if (norm_d1 <= param->target_radius) map_grid[i] = 3;
-		}
-	}
-
-
-	for (int i = 0; i < (int)(param->mapsize * 2) * (param->mapsize * 2); i++)
-	{
-		if (i % (int)(2 * param->mapsize) == 0) printf("\n");
-		if (map_grid[i] == 0) printf(".");
-		else printf("%d", map_grid[i]);
-	}
-	printf("\n");
-	delete(map_grid);
-	return;
-}
-
-
 void print_distance_left(node best_node, PARAM* param)
 {
 	float average_x = 0;
@@ -914,7 +871,7 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 		dstart = ti + dstart + dend;
 		dend = d_param->time_array[i];
 		if(i == 0) steps = (int) d_param->time_array[i] / dt;
-		else if(i == sequence_count - 1) steps = (int) (tf - d_param->time_array[i-1]) / dt;
+		else if(i == sequence_count - 1) steps = (int) (tf - d_param->time_array[i - 1]) / dt;
 		else steps = (int) (d_param->time_array[i] - d_param->time_array[i-1]) / dt;
 		for (int j = 1; j <= steps; j++)
 		{
@@ -932,8 +889,13 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 			memcpy(&d_local, d_result, sizeof(node));
 			d_poses_index++;
 		}
-		d_sequence_end_indices[i] = d_poses_index;
+		d_sequence_end_indices[i] = d_poses_index - 1;
 	}
+
+  d_result->reached_destination = d_target_reached(*d_result, d_param);
+
+
+
 	return;
 }
 
@@ -1002,36 +964,27 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	printf("Cost of path(G) = %f\n",h_result->G);
 	if(h_result->isEmpty == 0) printf("PATH IS VALID\n");
  	else printf("PATH IS INVALID\n");
-	/*
-	for(int i = 0; i < 20; i++)
-	{
-		printf("index %d for robot position %f %f %f\n", i, 
-			h_poses[i].robot_pos[0][0], h_poses[i].robot_pos[0][1], 
-			h_poses[i].robot_pos[0][2]);
-
-	}
-	*/
 
 	/* Copy all the necessary information back to return struct */
-	return_1->sequence_length = param->time_array_count + 1;
-	return_1->cost_of_path = h_result->G;
+  return_1->cost_of_path = h_result->G;
 	if(h_result->isEmpty) return_1->is_valid_path = 0;
 	else return_1->is_valid_path = 1;
+	return_1->is_complete = h_result->reached_destination;
+
 	for(int i = 0; i < h_result_size; i++)
 	{
 		return_1->robot_positions.push_back(h_poses[i]);
 	}
-	for(int i = 0; i < return_1->sequence_length; i++)
+	for(int i = 0; i < seq_n; i++)
 	{
 		return_1->sequence_end_indices.push_back(h_sequence_end_indices[i]);
-		return_1->sequence_names.push_back(result_node.behaviorIndices[i]);
+		return_1->sequence_string_array.push_back(behavior_array[result_node.behaviorIndices[i]]);
 	}
 
 	printf("making sure that return struct has necessary info...\n");
-	printf("return_1->sequence_length = %d\n", return_1->sequence_length);
 	printf("return_1->cost_of_path = %f\n", return_1->cost_of_path);
 	printf("return-1->is_valid_path = %d\n", (int) return_1->is_valid_path);
-  for(int i = 0; i < return_1->sequence_length; i++)
+  for(int i = 0; i < seq_n; i++)
   {
     printf("return_1->sequence_end_indices[%d] = %d\n", 
             i, return_1->sequence_end_indices[i]);
@@ -1367,14 +1320,19 @@ void SAVE_launch(node result_node, RETURN* return_1, PARAM* param)
 
 void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 {
+  printf("Inside smhastar_wrapper\n");
 	node h_start; //starting node
 
 	h_start.isEmpty = 0;
 	h_start.N = param->N;
 	h_start.sequence_numel = 0;
 
+	printf("Inside smhastar_wrapper, param->N = %d\n", param->N);
+
+
 	std::copy(&param->robot_pos[0][0], &param->robot_pos[0][0] + param->N * 3, &h_start.robot_pos[0][0]);
 
+	printf("Done copying robot_positions param->h_start\n");
 	h_start.F = param->H * h_calculate_H1(h_start.robot_pos, param, h_start.N);
 	h_start.G = 0;
 	h_start.reached_destination = 0;
@@ -1409,7 +1367,8 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vector<int>sequence_array, std::vector<uint8_t> fix_array)
-{
+{ 
+  /*
 	param->N = 16;
 	param->M = 3; //2
 	param->H = 1;
@@ -1425,7 +1384,7 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
 	param->q_count = 2;
 	param->H2 = 1;
 
-	/* Initialize robot_pos */
+	/ Initialize robot_pos /
 	float bottom_left_x = -param->mapsize + 1;
 	float bottom_left_y = -param->mapsize + 1;
 	float width = (param->target_radius) * 2;
@@ -1439,7 +1398,7 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
 		param->robot_pos[i][2] = remainder(((float)(rand() % 1000)) / 1000, 2.0*M_PI);
 	}
 
-	/* Initialize obstacle_pos */
+	/ Initialize obstacle_pos /
 	float obstacle_min_radius = 2;
 	float obstacle_max_radius = 5;
 
@@ -1450,7 +1409,8 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
 		param->obstacle_pos[i][2] = fmod(((float)(rand() % 1000)) / 10, obstacle_max_radius);
 		if (param->obstacle_pos[i][2] < obstacle_min_radius) param->obstacle_pos[i][2] += obstacle_min_radius;
 	}
-
+  */
+  
 	param->time_array_count = time_array.size();
 	int fix_count = 0;
 	printf("Inside initialize_params....\n");
@@ -1465,11 +1425,23 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
 		param->sequence_array[i] = sequence_array[i];
 		if((int) fix_array[i] == 1) fix_count++;
 	}
+  /*
+  for(int i = 0; i < param->N; i++)
+	{
+		printf("robot %d pos = %f %f %f\n", i, param->robot_pos[i][0], param->robot_pos[i][1],
+						param->robot_pos[i][2]);
+	}
 
+	for(int i = 0; i < param->M; i++)
+	{
+		printf("obstacle %d pos = %f %f %f\n", i, param->obstacle_pos[i][0], param->obstacle_pos[i][1],
+					param->obstacle_pos[i][2]);
+	}
+  */
 	param->fix_count = fix_count;
+  printf("Returning from init params\n");
 	return;
 }
-
 
 
 void fix_robot_positions(PARAM* param)
@@ -1554,139 +1526,6 @@ void fix_obstacle_positions(PARAM* param)
 }
 
 
-void processParam(std::vector<std::string> tokens, PARAM* param)
-{
-	// Assign parameters according to the parameter name
-	if (tokens[0] == "N")
-		param->N = std::stof(tokens[1]);
-	else if (tokens[0] == "robot_radius")
-		param->robot_radius = std::stof(tokens[1]);
-	else if (tokens[0] == "M")
-		param->M = std::stof(tokens[1]);
-	else if (tokens[0] == "H")
-		param->H = std::stof(tokens[1]);
-	else if (tokens[0] == "H2")
-		param->H2 = std::stof(tokens[1]);
-	else if (tokens[0] == "q_count")
-		param->q_count = std::stof(tokens[1]);
-	else if (tokens[0] == "mapsize")
-		param->mapsize = std::stof(tokens[1]);
-	else if (tokens[0] == "ti")
-		param->ti = std::stof(tokens[1]);
-	else if (tokens[0] == "tf")
-		param->tf = std::stof(tokens[1]);
-	else if (tokens[0] == "dt")
-		param->dt = std::stof(tokens[1]);
-	else if (tokens[0] == "dT")
-		param->dT = std::stof(tokens[1]);
-	else if (tokens[0] == "target_radius")
-		param->target_radius = std::stof(tokens[1]);
-
-}
-
-
-void loadParametersFromFile(std::string filename, PARAM* param)
-{
-	std::fstream file(filename);
-	std::string str;
-	unsigned int line = 1;
-	size_t comment;
-
-	// Get the parameters from specified file
-	while (std::getline(file, str)) {
-		comment = str.find('#', 0);
-		if (comment != std::string::npos)
-		{
-			continue;
-		}
-
-		// String working variables
-		std::istringstream iss(str);
-		std::vector<std::string> tokens;
-
-		// Place the parameter and value into the token array
-		copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
-
-		// Ensure valid line before processing parameter
-		if (tokens.size() == 2) {
-			processParam(tokens, param);
-		}
-
-		/* Need to process robot_pos, obstacle_pos*/
-		if (tokens.size() == 1) {
-			if (tokens[0] == "robot_pos")
-			{
-				int count = 0;
-				while (count < param->N)
-				{
-					std::getline(file, str);
-					// String working variables
-					std::istringstream iss(str);
-					std::vector<std::string> tokens;
-
-					// Place the parameter and value into the token array
-					copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
-					if (tokens.size() != 3)
-					{
-						printf("Robot pos format wrong in file\n");
-						return;
-					}
-					param->robot_pos[count][0] = std::stof(tokens[0]);
-					param->robot_pos[count][1] = std::stof(tokens[1]);
-					param->robot_pos[count][2] = std::stof(tokens[2]);
-					count++;
-				}
-			}
-			else if (tokens[0] == "obstacle_pos")
-			{
-				int count = 0;
-				while (count < param->M)
-				{
-					std::getline(file, str);
-					// String working variables
-					std::istringstream iss(str);
-					std::vector<std::string> tokens;
-
-					// Place the parameter and value into the token array
-					copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
-					if (tokens.size() != 3)
-					{
-						printf("obstacle pos format wrong in file\n");
-						return;
-					}
-					param->obstacle_pos[count][0] = std::stof(tokens[0]);
-					param->obstacle_pos[count][1] = std::stof(tokens[1]);
-					param->obstacle_pos[count][2] = std::stof(tokens[2]);
-					count++;
-				}
-			}
-			else if (tokens[0] == "target_center")
-			{
-				std::getline(file, str);
-				// String working variables
-				std::istringstream iss(str);
-				std::vector<std::string> tokens;
-
-				// Place the parameter and value into the token array
-				copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
-				if (tokens.size() != 2)
-				{
-					printf("target pos format wrong in file\n");
-					return;
-				}
-				param->target_center[0] = std::stof(tokens[0]);
-				param->target_center[1] = std::stof(tokens[1]);
-
-			}
-		}
-
-		// Move to the next line in the parameters file
-		line++;
-	}
-
-	return;
-}
-
 
 
 
@@ -1703,17 +1542,12 @@ void initialize_result(node* result_node, PARAM* param)
 	return;
 }
 
-RETURN testmain(int isAided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed)
+RETURN testmain(PARAM* param, int isAided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed)
 {
 	printf("starting\n");
-	PARAM* param = new PARAM[1]; /* Allocate initial parameters on heap */
-								 /* If input param file is not specified, go with the default */
 	RETURN return_1;
 
 	initialize_parameters(param, time_array, sequence_array, isFixed);
-	fix_robot_positions(param);
-	fix_obstacle_positions(param);
-
 
 	if(isAided) SMHAstar_wrapper(param, &return_1);
 	else {
@@ -1724,7 +1558,6 @@ RETURN testmain(int isAided, std::vector<float> time_array, std::vector<int> seq
 		//printf("after returning from noSMHAstar function....\n");
 		//printf("return_1 cost_of_path = %f\n", return_1.cost_of_path);
 	}
-	delete(param);
 
 	return return_1;
 }

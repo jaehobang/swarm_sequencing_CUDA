@@ -9,6 +9,7 @@ ConsoleWidget1::ConsoleWidget1(QWidget *parent) : QPlainTextEdit( parent )
     switchtime_val = "";
     cost_val = "";
     validity_val = "";
+		complete_val = "";
     text_info = "";
 
     this->setReadOnly(true);
@@ -17,13 +18,14 @@ ConsoleWidget1::ConsoleWidget1(QWidget *parent) : QPlainTextEdit( parent )
 }
 
 void ConsoleWidget1::update(QString sequence, QString switchtime,
-                           QString cost, QString valid)
+                           QString cost, QString valid, QString complete)
 {
     iteration++;
     sequence_val = sequence;
     switchtime_val = switchtime;
     cost_val = cost;
     validity_val = valid;
+		complete_val = complete;
 
 
     QString i = "Iteration: ";
@@ -31,6 +33,7 @@ void ConsoleWidget1::update(QString sequence, QString switchtime,
     QString sw = "Switch Times: ";
     QString c = "Cost of Path: ";
     QString v = "Validity of Path: ";
+    QString co = "Objective Reached: ";
     QString st = "\n---------------------------------------------\n\n";
 
     text_info += st;
@@ -39,6 +42,7 @@ void ConsoleWidget1::update(QString sequence, QString switchtime,
     text_info += sw + switchtime_val + "\n";
     text_info += c + cost_val + "\n";
     text_info += v + validity_val + "\n";
+    text_info += co + complete_val + "\n";
 
     this->setPlainText(text_info);
     //text_box->setT
@@ -57,6 +61,7 @@ void ConsoleWidget1::reset()
 		switchtime_val = "";
 		cost_val = "";
 		validity_val = "";
+    complete_val = "";
 		text_info = "";
 		this->setPlainText(text_info);
 		return;

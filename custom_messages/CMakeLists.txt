@@ -52,7 +52,7 @@ add_message_files(
    FILES
    R2C.msg
    C2R.msg
-   POS.msg
+   C2D.msg
    R2D.msg
 )
 

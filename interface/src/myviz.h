@@ -12,14 +12,10 @@
 #include "consolewidget1.h"
 #include "popupwidget.h"
 
-#include "custom_messages/POS.h"
 #include "custom_messages/R2C.h"
 #include "custom_messages/R2D.h"
 #include "custom_messages/C2R.h"
-#include "geometry_msgs/PoseArray.h"
-#include "geometry_msgs/Pose.h"
 #include "visualization_msgs/MarkerArray.h"
-#include "visualization_msgs/Marker.h"
 
 
 
@@ -46,7 +42,7 @@ public:
   virtual ~MyViz();
   void callBack(const custom_messages::C2R::ConstPtr& msg);
   void setNodeHandle(ros::NodeHandle nn);
-  void setNameAndAided(string n, uint8_t isAided);
+  void setNameAndAided(string n, uint8_t is_aided);
 
 private Q_SLOTS:
   void generate();
@@ -66,21 +62,20 @@ private:
   rviz::Display* trajectory_;
 
   ros::NodeHandle n;
-  ros::Publisher i_publisher;
   ros::Publisher ic_publisher;
   ros::Publisher id_publisher;
-  ros::Subscriber i_subscriber;
+  ros::Subscriber ic_subscriber;
 
   std::vector<string> behavior_array = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
   std::vector<string> behavior_array_short = {"r", "i", "e", "n", "w", "s", "a"};
-  std::vector<string> color_array = {"dark cyan", "cyan", "gray", "green", "light gray", "magneta", "dark magneta"};
+  std::vector<string> color_array = {"cyan", "purple", "navy blue", "brown", "dark green", "orange", "pink"};
   string name;
-  uint8_t isAided;
+  uint8_t is_aided;
   QString curr_sequence;
   QString curr_switchtime;
   QString curr_cost;
   QString curr_valid;
-
+  QString curr_complete;
 
   std::vector<int> sequenceInputConvert(QString sequence);
   std::vector<float> switchtimeInputConvert(QString switchtime);

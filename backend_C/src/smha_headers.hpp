@@ -65,10 +65,10 @@ typedef struct POS_TWO
 typedef struct RETURN
 {
   std::vector<POS> robot_positions;
-  int sequence_length;
   std::vector<int> sequence_end_indices;
   float cost_of_path;
   uint8_t is_valid_path;
-  std::vector<int> sequence_names;
+  uint8_t is_complete;
+  std::vector<std::string> sequence_string_array;
 } RETURN;
 

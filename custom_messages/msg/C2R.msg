@@ -1,6 +1,4 @@
-POS[] robot_positions
-int32 sequence_length
-int32[] sequence_end_indices
 float32 cost_of_path
 bool is_valid_path
-int32[] sequence_names
+bool is_complete #did it reach destination
+string[] sequence_string_array

@@ -8,7 +8,7 @@ class Timer : public QLCDNumber
     Q_OBJECT
 
 public:
-    Timer(QWidget *parent = 0, int time_limit = 180); //3 minutes per map
+    Timer(QWidget *parent = 0, int time_limit = 18000); //3 minutes per map
     void reset();
 
 
