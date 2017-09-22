@@ -11,7 +11,7 @@
 
 using namespace std;
 
-RETURN testmain(PARAM* parametereter, int is_aided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed);
+RETURN testmain(PARAM* parameter, int is_aided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed);
 //int testmain();
 RETURN return_struct; 
 ros::Publisher ci_publisher;
@@ -28,9 +28,9 @@ int errorCheckR2C(const custom_messages::R2C::ConstPtr& msg)
     ROS_INFO("Too many switch times selected....\n");
     return 1;
   }
-  if(msg->is_aided == 0 && msg->sequence_int_array.size() != msg->time_array.size())
+  if(msg->sequence_int_array.size() >  msg->time_array.size())
   {
-    ROS_INFO("Number of switch times does not match number of sequence for unaided case....\n");
+    ROS_INFO("More sequences than switchtimes!!!! ERRORRRRRRR\n");
     return 1;
   }
 }
@@ -520,18 +520,14 @@ void updateMap()
 
 void handleEot(const custom_messages::R2C::ConstPtr& msg)
 {
+  ROS_INFO("Inside handleEot backend_C main.cpp");
   int is_aided = 1;
   std::vector<float> time_array = msg->time_array;
   std::vector<int> sequence_array;
   std::vector<uint8_t> is_fixed;
-  ROS_INFO("going into parsemap");
-  ROS_INFO("came back from parsemap");
-	printf("N = %d, M = %d\n", parameter->N, parameter->M);
-
   PARAM local_parameter;
   memcpy(&local_parameter, parameter, sizeof(PARAM));
   //3. Call the kernel code
-  ROS_INFO("Right before test main parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
   return_struct = testmain(&local_parameter, is_aided, time_array, sequence_array, is_fixed);  
 
 
@@ -550,6 +546,7 @@ void handleEot(const custom_messages::R2C::ConstPtr& msg)
   c2r.eot = 1; 
   ci_publisher.publish(c2r);
 	ros::spinOnce();
+  ROS_INFO("End of handleEot backend_C main.cpp");
  
 	return;
 
@@ -590,33 +587,20 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
   std::vector<float> time_array = msg->time_array;
   std::vector<int> sequence_array = msg->sequence_int_array;
   std::vector<uint8_t> is_fixed = msg->is_fixed;
-  ROS_INFO("going into parsemap");
-  ROS_INFO("came back from parsemap");
-	printf("N = %d, M = %d\n", parameter->N, parameter->M);
-
   PARAM local_parameter;
   memcpy(&local_parameter, parameter, sizeof(PARAM));
   //3. Call the kernel code
-  ROS_INFO("Right before test main parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
   return_struct = testmain(&local_parameter, is_aided, time_array, sequence_array, is_fixed);  
 
-  ROS_INFO("After testmain parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
   //4. Publish a C2R reply
   publishC2R();
-  ROS_INFO("Finished publishing C2R");
-  ROS_INFO("AFter publishC2R, ->N = %d, ->M = %d", parameter->N, parameter->M);
   //5. Publish a visualization message
   publishMarkerArray();
-	ROS_INFO("Finished publishing MarkerArray");
-  ROS_INFO("AFter publishMarkerArray, ->N = %d, ->M = %d", parameter->N, parameter->M);
- 
+
   //6. Publish a c2d message
   publishC2D();
-  ROS_INFO("Finished publishing C2D");
-  ROS_INFO("AFter publishC2D, ->N = %d, ->M = %d", parameter->N, parameter->M);
- 
+
   ROS_INFO("End of callback function for backend_C_node");
-  ROS_INFO("At the end of callback parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
   return;
 }
 

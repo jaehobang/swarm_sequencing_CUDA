@@ -90,6 +90,7 @@ private:
   std::vector<int> sequenceInputConvert(QString sequence);
   std::vector<float> switchtimeInputConvert(QString switchtime);
   int iterationConvert(QString iteration);
+  void generateErrorPopup(QString label_val);
 };
 
 // END_TUTORIAL

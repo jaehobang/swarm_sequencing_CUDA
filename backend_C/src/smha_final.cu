@@ -1321,7 +1321,7 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 
 	h_start.isEmpty = 0;
 	h_start.N = param->N;
-	h_start.sequence_numel = 0;
+	h_start.sequence_numel = param->sequence_array_count;
 
 	printf("Inside smhastar_wrapper, param->N = %d\n", param->N);
 
@@ -1333,6 +1333,18 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 	h_start.G = 0;
 	h_start.reached_destination = 0;
 	
+  for(int i = 0; i < h_start.sequence_numel; i++)
+  {
+    h_start.behaviorIndices[i] = param->sequence_array[i];
+  }
+
+  if(param->sequence_array_count != 0)
+  {
+    RETURN result_tmp;
+    noSMHAstar(param, &result_tmp, h_start);
+  }
+
+
 	node result_node = SMHAstar(param, h_start); //note this result_node might be simply the closest attempt to the goal
 
 	//Need to reset the result_node robot position to initial 
@@ -1364,52 +1376,10 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 
 void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vector<int>sequence_array, std::vector<uint8_t> fix_array)
 { 
-  /*
-	param->N = 16;
-	param->M = 3; //2
-	param->H = 1;
-	param->mapsize = 20;
-	param->ti = 0;
-	param->dt = 0.1;
-	param->tf = 50;
-	param->dT = 5;
-	param->target_center[0] = 10;
-	param->target_center[1] = 10;
-	param->target_radius = 7;
-	param->robot_radius = 0.5;
-	param->q_count = 2;
-	param->H2 = 1;
-
-	/ Initialize robot_pos /
-	float bottom_left_x = -param->mapsize + 1;
-	float bottom_left_y = -param->mapsize + 1;
-	float width = (param->target_radius) * 2;
-	float height = (param->target_radius) * 2;
-
-	int i;
-	for (i = 0; i < param->N; i++)
-	{
-		param->robot_pos[i][0] = bottom_left_x + width * ((float)(rand() % 1000)) / 1000;
-		param->robot_pos[i][1] = bottom_left_y + height * ((float)(rand() % 1000)) / 1000;
-		param->robot_pos[i][2] = remainder(((float)(rand() % 1000)) / 1000, 2.0*M_PI);
-	}
-
-	/ Initialize obstacle_pos /
-	float obstacle_min_radius = 2;
-	float obstacle_max_radius = 5;
-
-	for (i = 0; i < param->M; i++)
-	{
-		param->obstacle_pos[i][0] = fmod(((float)(rand() % 1000)) / 10, (2 * param->mapsize)) - param->mapsize;
-		param->obstacle_pos[i][1] = fmod(((float)(rand() % 1000)) / 10, (2 * param->mapsize)) - param->mapsize;
-		param->obstacle_pos[i][2] = fmod(((float)(rand() % 1000)) / 10, obstacle_max_radius);
-		if (param->obstacle_pos[i][2] < obstacle_min_radius) param->obstacle_pos[i][2] += obstacle_min_radius;
-	}
-  */
-  
+ 
 	param->time_array_count = time_array.size();
-	int fix_count = 0;
-	printf("Inside initialize_params....\n");
+  param->sequence_array_count = sequence_array.size();
+  printf("Inside initialize_params....\n");
 	printf("Length of time_array is %d, Length of sequence is %d\n", time_array.size(), sequence_array.size());
 
 	for(int i = 0; i < time_array.size(); i++)
@@ -1419,22 +1389,7 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
 	for(int i = 0; i < sequence_array.size(); i++)
 	{
 		param->sequence_array[i] = sequence_array[i];
-		if((int) fix_array[i] == 1) fix_count++;
 	}
-  /*
-  for(int i = 0; i < param->N; i++)
-	{
-		printf("robot %d pos = %f %f %f\n", i, param->robot_pos[i][0], param->robot_pos[i][1],
-						param->robot_pos[i][2]);
-	}
-
-	for(int i = 0; i < param->M; i++)
-	{
-		printf("obstacle %d pos = %f %f %f\n", i, param->obstacle_pos[i][0], param->obstacle_pos[i][1],
-					param->obstacle_pos[i][2]);
-	}
-  */
-	param->fix_count = fix_count;
   printf("Returning from init params\n");
 	return;
 }

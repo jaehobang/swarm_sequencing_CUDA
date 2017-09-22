@@ -40,9 +40,10 @@ typedef struct PARAM
                                    //newly added
   float H2; //w2
   int q_count; //number of queues
-  float time_array[SEQ_MAX - 1];
+  float time_array[SEQ_MAX];
   int time_array_count;
   int sequence_array[SEQ_MAX];
+  int sequence_array_count;
   int fix_count;
 } PARAM;
 

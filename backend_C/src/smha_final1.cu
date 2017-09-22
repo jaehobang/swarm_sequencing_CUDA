@@ -28,89 +28,13 @@
 
 #include "math.h"
 #include "math_constants.h"
-
+#include "smha_headers.hpp"
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 using namespace std;
 
-
-const int DIR = 7; //directions I can take {rendezvous, flocking, north, south, west, east, no_move}
-const int ARRAY_SIZE = 256;
-const int ROBOT_MAX = 40;
-const int OBS_MAX = 50;
-const int NODE_MAX = 5000;
-const int EXPAND_MAX = 64;
-const int SEQ_MAX = 30;
-const int QUEUE_MAX = 3;
-
 char *behavior_array[DIR] = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
-
-
-/* each 'cell' corresponds to a node */
-typedef struct node
-{
-	int isEmpty;
-	int N;
-	float robot_pos[ROBOT_MAX][3]; //(x,y,theta)
-	float F; //cost that includes priority
-	float G; //just cost
-	int behaviorIndices[SEQ_MAX]; //0->rendezvous, 1->flocking, 2->flock_east, 3->flock_north, 4->flock_west, 5->flock_south, 6->move_stop
-	long long behaviorIdx;
-	int reached_destination;
-	int sequence_numel;
-} node;
-
-
-typedef struct PARAM
-{
-	int N; //number of robots
-	int M; //number of obstacles
-	float H; //w1
-	float robot_pos[ROBOT_MAX][3]; //assue no more than 50 robots at this time; each row (x,y,theta)
-	float target_center[2]; //(x,y)
-	float target_radius; //r
-	float robot_radius;
-	float obstacle_pos[OBS_MAX][3];
-	//assume no more than 50 obstacles;obstacles are circles; each row (x,y,r)
-	float ti; //start time
-	float tf; //end time
-	float dt; //each time step
-	float dT; //each decision time
-	float mapsize; //mapsize row, col is same
-				   //newly added
-	float H2; //w2
-	int q_count; //number of queues
-
-} PARAM;
-
-typedef struct Queue_p
-{
-	std::map<int, node*> *closed_dict_p;
-	std::vector<node> *h_open_p;
-	std::vector<int> *expanded_number_per_iter_p;
-	int iteration;
-} Queue_p;
-
-typedef struct POS
-{
-	float robot_pos[ROBOT_MAX][3];
-} POS;
-
-typedef struct POS_TWO
-{
-	float pos[2];
-} POS_TWO;
-
-typedef struct RETURN
-{
-	std::vector<POS> robot_positions;
-	int sequence_length;
-	std::vector<int> sequence_end_indices;
-	float cost_of_path;
-	uint8_t is_valid_path;
-	std::vector<int> sequence_names;
-} RETURN;
 
 /* Error Checking..... */
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -575,13 +499,8 @@ param @ d_param - parameters about the swarm
 param @ dir - Number of directions (7 for now)
 param @ iteration - used for backtracing */
 __global__
-void k_expandStates(node *d_expanded, node* d_open, PARAM* d_param, int dir, int iteration, int real_copies, int queue_i)
+void k_expandStates(node* d_expanded, node* d_open, PARAM* d_param, int dir, int iteration, int real_copies, int queue_i)
 {
-	//int dir_index = blockIdx.x;
-	//int node_index = threadIdx.x;
-	//int robot_index = blockIdx.y;
-	//int index = node_index * dir + dir_index;
-
 	int dir_index = threadIdx.x;
 	int robot_index = threadIdx.y;
 	int node_index = blockIdx.x;
@@ -597,16 +516,29 @@ void k_expandStates(node *d_expanded, node* d_open, PARAM* d_param, int dir, int
 	float ti = d_param->ti;
 	float dT = d_param->dT;
 	float tf = d_param->tf;
-	float tbegin = ti + d_open[node_index].sequence_numel * dT;
+ 
+  if(d_open[node_index].sequence_numel >= d_param->time_array_count) {
+    d_expanded[index].isEmpty = 1;
+    return;
+  }
 
-	float tend = tbegin + dT;
 	int steps = (int)dT / dt;
-	int currSequenceNumel = d_open[node_index].sequence_numel + 1;
+	int currSequenceIndex = d_open[node_index].sequence_numel;
 
+	if(currSequenceIndex == 0) steps = 
+		(int) d_param->time_array[currSequenceIndex] / dt;
+	else steps = (int) (d_param->time_array[currSequenceIndex] - d_param->time_array[currSequenceIndex - 1]) / dt;
 	/* Only write to global memory once */
-	if (robot_index == 0) d_expanded[index] = d_open[node_index];
+	if (robot_index == 0) 
+	{
+		memcpy(&d_expanded[index], &d_open[node_index], sizeof(node));
+    printf("d_open[%d].isEmpty = %d, .sequence_numel = %d, behaviorIdx = %llu\n",
+			node_index, d_open[node_index].isEmpty, d_open[node_index].sequence_numel,
+			d_open[node_index].behaviorIdx);
+  }
 
 	__syncthreads();
+
 	for (int i = 0; i < steps; i++)
 	{
 		node d_expanded_old = d_expanded[index];
@@ -623,19 +555,17 @@ void k_expandStates(node *d_expanded, node* d_open, PARAM* d_param, int dir, int
 	if (robot_index == 0)
 	{
 		/* Only write to global memory once */
-		d_expanded[index].behaviorIndices[currSequenceNumel] = dir_index;
+		d_expanded[index].behaviorIndices[currSequenceIndex] = dir_index;
 		d_expanded[index].behaviorIdx = d_expanded[index].behaviorIdx * 10 + dir_index;
-
-		/* Swarm sequence invalid if exceeded end time */
-		d_expanded[index].isEmpty = (tbegin >= tf);
 
 		/* Check swarm if reached destination */
 		d_expanded[index].reached_destination = d_target_reached(d_expanded[index], d_param);
 
 		/* cost_estimate is total cost: cost_estimate = cost_next + H*cost_to_go */
 		d_expanded[index].F = d_expanded[index].G + (d_param->H) * d_calculate_H(d_expanded[index], d_param, queue_i);
-		d_expanded[index].sequence_numel = currSequenceNumel;
-		//printf("SEQUENCE_NUMEL IS %d\n", d_expanded[index].sequence_numel);
+		d_expanded[index].sequence_numel += 1;
+		//printf("INSIDE KERNEL>>> [%d].F = %f, .behaviorIdx = %llu\n", 
+    //        index, d_expanded[index].F, d_expanded[index].behaviorIdx);
 	}
 	return;
 }
@@ -684,49 +614,6 @@ std::vector<float> convert_index(float mapsize, int index)
 }
 
 
-void print_map(node best_node, PARAM* param)
-{
-	/* Print location of all robots, obstacles and the target location */
-	/* Empty space is 0 */
-	/* center of Robots are 1 */
-	/* Center of Obstacles are 2 */
-	/* Center of target is 3 */
-	int map_size = (int)param->mapsize * 2 * param->mapsize * 2;
-	int* map_grid = new int[map_size];
-	for (int i = 0; i < map_size; i++) map_grid[i] = 0;
-
-	for (int i = 0; i < param->N; i++)
-	{
-		int index = convert_position(param->mapsize, best_node.robot_pos[i][0], best_node.robot_pos[i][1]);
-		map_grid[index] = 1;
-	}
-
-	for (int i = 0; i < map_size; i++)
-	{
-		std::vector<float> pos = convert_index(param->mapsize, i);
-		for (int j = 0; j < param->M; j++)
-		{
-			float norm_d = sqrt(pow(param->obstacle_pos[j][0] - pos[0], 2) + pow(param->obstacle_pos[j][1] - pos[1], 2));
-			if (norm_d <= param->obstacle_pos[j][2]) map_grid[i] = 2;
-
-			float norm_d1 = sqrt(pow(param->target_center[0] - pos[0], 2) + pow(param->target_center[1] - pos[1], 2));
-			if (norm_d1 <= param->target_radius) map_grid[i] = 3;
-		}
-	}
-
-
-	for (int i = 0; i < (int)(param->mapsize * 2) * (param->mapsize * 2); i++)
-	{
-		if (i % (int)(2 * param->mapsize) == 0) printf("\n");
-		if (map_grid[i] == 0) printf(".");
-		else printf("%d", map_grid[i]);
-	}
-	printf("\n");
-	delete(map_grid);
-	return;
-}
-
-
 void print_distance_left(node best_node, PARAM* param)
 {
 	float average_x = 0;
@@ -746,39 +633,30 @@ void print_distance_left(node best_node, PARAM* param)
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-std::vector<Queue_p*> initializeQps(PARAM* param)
+Queue* initializeQps(PARAM* param, node h_start)
 {
-	std::vector<Queue_p*> qps;
+	Queue* qps = new Queue[QUEUE_SIZE];
 
-	for (int i = 0; i < param->q_count; i++)
+	for (int i = 0; i < QUEUE_SIZE; i++)
 	{
-		Queue_p *qp_p = new Queue_p;
-		qp_p->h_open_p = new std::vector<node>;
-		qp_p->iteration = 1;
-
-
-		qps.push_back(qp_p);
+		qps[i].iteration = 1;
 	}
 
 
 
-	for (int i = 0; i < param->q_count; i++)
+	for (int i = 0; i < QUEUE_SIZE; i++)
 	{
-		node h_start; //starting node
-
-		h_start.isEmpty = 0;
-		h_start.N = param->N;
-		h_start.sequence_numel = -1;
-
-		std::copy(&param->robot_pos[0][0], &param->robot_pos[0][0] + param->N * 3, &h_start.robot_pos[0][0]);
-
-		h_start.F = param->H * h_calculate_H1(h_start.robot_pos, param, h_start.N);
-		h_start.G = 0;
-		h_start.reached_destination = 0;
-
-		(*qps[i]->h_open_p).push_back(h_start);
+    qps[i].h_open.push_back(h_start);
 	}
 
+  //Debugging
+  printf("Inside initializeQps!!!\n");
+  for (int i = 0; i < param->q_count; i++)
+  {
+    printf("making sure h_start is inside queue[%d]...\n", i);
+    printf("node.isEmpty = %d, node.F = %f, node.G = %f, node.sequence_numel = %d\n",
+					qps[i].h_open[0].isEmpty, qps[i].h_open[0].F, qps[i].h_open[0].G, qps[i].h_open[0].sequence_numel); 
+  }
 	return qps;
 }
 
@@ -828,24 +706,28 @@ float h_calculate_H(node d_expanded, PARAM* d_param, int mode)
 
 }
 
-void updateQueues(std::vector<Queue_p*> qps, node curr, PARAM* param, int queue_i)
+void updateQueues(Queue* qps, node curr, PARAM* param, int queue_i)
 {
 	curr.F = curr.G + param->H * h_calculate_H(curr, param, 0);
 	float queue_0_F = curr.F;
-	(*qps[0]->h_open_p).push_back(curr);
-	for (int i = 1; i < qps.size(); i++)
+  //printf("UpdateQueues>>>> curr.F = %f, curr.behaviorIdx = %llu\n", curr.F, curr.behaviorIdx);
+
+	qps[0].h_open.push_back(curr);
+  int index = qps[0].h_open.size() - 1;
+  //printf("Just to make sure UpdateQueus>>> curr.F = %f, curr.behaviorIdx = %llu\n", 
+  //       qps[0].h_open[index].F, qps[0].h_open[index].behaviorIdx);
+	for (int i = 1; i < QUEUE_SIZE; i++)
 	{
 		curr.F = curr.G + param->H * h_calculate_H(curr, param, i);
 		//printf("curr_i_F = %f, cuff_0_F = %f\n", curr.F, queue_0_F);
-		if (curr.F <= param->H2 * queue_0_F) (*qps[i]->h_open_p).push_back(curr);
+		if (curr.F <= param->H2 * queue_0_F) qps[i].h_open.push_back(curr);
 	}
 	return;
 }
 
 
-void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, int queue_i)
+void expandStates(Queue* qps, PARAM* param, node* best_node_p, node* best_attempt, int queue_i)
 {
-	Queue_p* qp = qps[queue_i];
 	PARAM* d_param; /* device parameters */
 	cudaMalloc(&d_param, sizeof(PARAM));
 	cudaMemcpy(d_param, param, sizeof(PARAM), cudaMemcpyHostToDevice);
@@ -854,21 +736,20 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, in
 	node *d_expanded; /* device expanded nodes */
 
 					  /* Dequeue from h_open */
-	int iteration = qp->iteration;
+	int iteration = qps[queue_i].iteration;
 	printf("Inside ExpandStates....iteration is %d\n", iteration);
 
-	int h_open_size = (*qp->h_open_p).size();
+	int h_open_size = qps[queue_i].h_open.size();
 	int real_copies = (h_open_size > ARRAY_SIZE) ? ARRAY_SIZE : h_open_size;
 	node* h_open_array = new node[real_copies]; /* temporary data used for cudaMemcpy of h_open */
 	node* h_expanded = new node[real_copies * DIR]; /* data used for retrieving expanded nodes data; Also used for backtracking */
 
 	printf("For %d, real_copies %d\n", queue_i, real_copies);
 
-	std::copy((*qp->h_open_p).begin(), (*qp->h_open_p).begin() + real_copies, h_open_array);
+	std::copy(qps[queue_i].h_open.begin(), qps[queue_i].h_open.begin() + real_copies, h_open_array);
 	/* Erase the same nodes from all queues */
-	(*qp->h_open_p).erase((*qp->h_open_p).begin(), (*qp->h_open_p).begin() + real_copies);
+	qps[queue_i].h_open.erase(qps[queue_i].h_open.begin(), qps[queue_i].h_open.begin() + real_copies);
 	/* TODO: Make sure this portion of code is correct!!!! */
-
 
 	//////////////
 	for (int queue_j = 0; queue_j < param->q_count; queue_j++)
@@ -876,9 +757,9 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, in
 		if (queue_i == queue_j) continue;
 		std::vector<int> erase_indices;
 		for (int i = 0; i < real_copies; i++) {
-			for (int j = 0; j < (*qps[queue_j]->h_open_p).size(); j++)
+			for (int j = 0; j < qps[queue_j].h_open.size(); j++)
 			{
-				if (h_open_array[i].behaviorIdx == (*qps[queue_j]->h_open_p)[j].behaviorIdx) {
+				if (h_open_array[i].behaviorIdx == qps[queue_j].h_open[j].behaviorIdx) {
 					erase_indices.push_back(j);
 					break;
 				}
@@ -891,10 +772,15 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, in
 		{
 			//printf("erase_indices[%d] is %d\n", k, erase_indices[k]);
 
-			(*qps[queue_j]->h_open_p).erase((*qps[queue_j]->h_open_p).begin() + erase_indices[k]);
+			qps[queue_j].h_open.erase(qps[queue_j].h_open.begin() + erase_indices[k]);
 		}
 		
 	}
+
+  printf("Inside expandStates....\n");
+  printf("h_open_array[0].isEmpty = %d, .F = %f, sequence_numel = %d\n", h_open_array[0].isEmpty,
+     h_open_array[0].F, h_open_array[0].sequence_numel);
+
 
 
 	/* Copy necessary data to device memory */
@@ -915,13 +801,38 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, in
 	/* Copy back from GPU to CPU */
 	cudaMemcpy(h_expanded, d_expanded, sizeof(node) * real_copies * DIR, cudaMemcpyDeviceToHost);
 
+  //print everything that is returned from expandStates
+  for(int i = 0; i < real_copies * DIR; i++)
+  {
+    printf("[%d] isEmpty = %d, sequence_numel = %d, behaviorIdx = %llu\n", i, h_expanded[i].isEmpty,
+						h_expanded[i].sequence_numel, h_expanded[i].behaviorIdx);
+  }
+
+
+
 	/* Update open list with expanded nodes and update best_node */
 	for (int ind = 0; ind < real_copies * DIR; ind++)
-	{
-		if (h_expanded[ind].isEmpty == 0 && h_expanded[ind].reached_destination == 0)
-		{
+	{ 
+    /* Debuggin */
+   if (h_expanded[ind].isEmpty == 0 && h_expanded[ind].reached_destination == 0)
+	 {
+   
+	
 			node curr = h_expanded[ind];
-			//printf("IN HOST SEQUENCE_NUMEL IS %d\n", curr.sequence_numel);
+			float distance_to_goal = curr.F - curr.G;
+  		if(distance_to_goal < best_attempt->F - best_attempt->G) 
+			{
+			  memcpy(best_attempt, &curr, sizeof(node));
+        printf("UPDATING Best attempt! best_attempt.distance_left = %f, sequence_numel = %d, isEmpty = %d\n",
+						best_attempt->F - best_attempt->G, best_attempt->sequence_numel, best_attempt->isEmpty);
+				for(int i = 0; i < best_attempt->sequence_numel; i++)
+				{
+					printf("%s ", behavior_array[best_attempt->behaviorIndices[i]]);
+        }
+        printf("\n");
+
+				
+      }
 			updateQueues(qps, curr, param, queue_i);
 		}
 		else if (h_expanded[ind].isEmpty == 0 && h_expanded[ind].reached_destination == 1
@@ -929,7 +840,7 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, in
 			memcpy(best_node_p, &h_expanded[ind], sizeof(node));
 			printf("UPDATING BEST NODE!! cost is %f, sequence_numel is %d\n", best_node_p->G, best_node_p->sequence_numel);
 			printf("printing sequence...\n");
-			for (int i = 0; i <= best_node_p->sequence_numel; i++)
+			for (int i = 0; i < best_node_p->sequence_numel; i++)
 			{
 				int index = best_node_p->behaviorIndices[i];
 				//printf("hello world????\n");
@@ -942,20 +853,20 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, in
 
 	for (int i = 0; i < param->q_count; i++)
 	{
-		printf("Queue%d size is %d\n", i, (*qps[i]->h_open_p).size());
+		printf("Queue%d size is %d\n", i, qps[i].h_open.size());
 	}
 
 
 	/* Sort the open_list */
-	for (int i = 0; i < qps.size(); i++)
+	for (int i = 0; i < QUEUE_SIZE; i++)
 	{
-		std::sort((*qps[i]->h_open_p).begin(), (*qps[i]->h_open_p).end(), [](node left, node right) {return left.F < right.F; });
+		std::sort(qps[i].h_open.begin(), qps[i].h_open.end(), [](node left, node right) {return left.F < right.F; });
 	}
 
 
 
 	/* Prepare for next iteration */
-	qp->iteration++;
+	qps[queue_i].iteration++;
 	delete(h_open_array);
 	cudaFree(d_expanded);
 	cudaFree(d_open);
@@ -963,14 +874,168 @@ void expandStates(std::vector<Queue_p*> qps, PARAM* param, node* best_node_p, in
 
 }
 
+__global__
+void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_indices)
+{
+	int robot_index = threadIdx.x;
+	/* Error checking */
+	if (robot_index >= d_param->N) return;
+	
+	if (robot_index == 0) {
+		memcpy(d_poses[0].robot_pos, d_param->robot_pos, sizeof(float)*d_param->N * 3);
+		printf("Inside k_noSMHA!!!!\n");
+		printf("SEQUENCE NUMEL IS %d\n", d_result->sequence_numel);
+	}
+	__syncthreads();
+	
+	/* Expand the nodes */
+	float dt = d_param->dt;
+	float ti = d_param->ti;
+	float dT = d_param->dT;
+	float tf = d_param->tf;
+	int steps = (int)dT / dt;
+	float dstart = ti;
+	float dend = 0;
+
+	int sequence_count = d_result->sequence_numel;
+
+	node d_local;
+	memcpy(&d_local, d_result, sizeof(node));
+	int d_poses_index = 0;
+	for (int i = 0; i < sequence_count; i++)
+	{
+		dstart = ti + dstart + dend;
+		dend = d_param->time_array[i];
+		if(i == 0) steps = (int) d_param->time_array[i] / dt;
+		else steps = (int) (d_param->time_array[i] - d_param->time_array[i-1]) / dt;
+		for (int j = 1; j <= steps; j++)
+		{
+			/* Forward kinematics -> Save it to POS* -> Update d_local */
+			func[d_result->behaviorIndices[i]](d_result, &d_local, robot_index, dt);
+			__syncthreads();
+		
+			if(d_valid_poses(*d_result, d_param) == 0) { d_result->isEmpty = 1;}
+			d_result->G = d_calculate_G(*d_result, d_local, d_param, 0);
+			if (robot_index == 0) {
+				memcpy(d_poses[d_poses_index].robot_pos, d_result->robot_pos, 
+				sizeof(float) * d_param->N * 3);
+			}
+			__syncthreads();
+			memcpy(&d_local, d_result, sizeof(node));
+			d_poses_index++;
+		}
+		d_sequence_end_indices[i] = d_poses_index - 1;
+		
+	}
+
+  d_result->reached_destination = d_target_reached(*d_result, d_param);
+  d_result->F = d_result->G + (d_param->H) * d_calculate_H(*d_result, d_param, 0);
+
+
+	return;
+}
+
+
+void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
+{
+	/* Only for debugging purposes need to make sure that all the info is delivered correctly */
+	printf("Inside noSMHAstar.....\n");
+	printf("number of switch times given.... %d\n", param->time_array_count);
+	for(int i = 0; i < param->time_array_count; i++)
+	{
+		printf("%f ", param->time_array[i]);
+	}
+	printf("\n");
+
+	printf("checking result node also.... sequence_numel is %d\n", result_node.sequence_numel);
+	for(int i = 0; i < param->time_array_count; i++)
+	{
+		printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
+	}
+	printf("\n");
+
+
+
+	PARAM* d_param; /* device parameters */
+	gpuErrchk(cudaMalloc(&d_param, sizeof(PARAM)));
+	gpuErrchk(cudaMemcpy(d_param, param, sizeof(PARAM), cudaMemcpyHostToDevice));
+
+	node* d_result;
+	gpuErrchk(cudaMalloc(&d_result, sizeof(node)));
+	gpuErrchk(cudaMemcpy(d_result, &result_node, sizeof(node), cudaMemcpyHostToDevice));
+
+
+	int seq_n = result_node.sequence_numel;
+	int h_result_size = param->tf / param->dt + 1;
+	printf("h_result_size is ... %d\n", h_result_size);
+	POS* h_poses = new POS[h_result_size];
+	POS* d_poses;
+	gpuErrchk(cudaMalloc(&d_poses, sizeof(POS) * h_result_size));
+
+	
+	/* Allocate space on device for sequence_end_indices array, cost_of_path, is_valid_path */
+	float cost_of_path = 0;
+	int is_valid_path = 0;
+	int* h_sequence_end_indices = new int[param->time_array_count + 1];
+	int* d_sequence_end_indices;
+	gpuErrchk(cudaMalloc(&d_sequence_end_indices, sizeof(int) * (param->time_array_count + 1)));
+
+
+
+	const dim3 gridSize(1, 1, 1);
+	const dim3 blockSize(param->N, 1, 1);
+	k_noSMHA << <gridSize, blockSize >> >(d_poses, d_result, d_param, d_sequence_end_indices);
+
+	/* Copy back from GPU to CPU */
+	cudaMemcpy(h_poses, d_poses, sizeof(POS) * h_result_size, cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_sequence_end_indices, d_sequence_end_indices, 
+		   sizeof(int) * (param->time_array_count + 1), cudaMemcpyDeviceToHost);
+
+	node* h_result = new node[1];
+	cudaMemcpy(h_result, d_result, sizeof(node), cudaMemcpyDeviceToHost);
+
+	
+	printf("returned from kernel...\n");
+	printf("printing all necessary information to check that kernel returned correctly\n");
+	printf("Cost of path(G) = %f\n",h_result->G);
+	if(h_result->isEmpty == 0) printf("PATH IS VALID\n");
+ 	else printf("PATH IS INVALID\n");
+
+	/* Copy all the necessary information back to return struct */
+  return_1->cost_of_path = h_result->G;
+	if(h_result->isEmpty) return_1->is_valid_path = 0;
+	else return_1->is_valid_path = 1;
+	return_1->is_complete = h_result->reached_destination;
+
+	for(int i = 0; i < h_result_size; i++)
+	{
+		return_1->robot_positions.push_back(h_poses[i]);
+	}
+	for(int i = 0; i < seq_n; i++)
+	{
+		return_1->sequence_end_indices.push_back(h_sequence_end_indices[i]);
+		return_1->sequence_string_array.push_back(behavior_array[result_node.behaviorIndices[i]]);
+	}
+
+	printf("making sure that return struct has necessary info...\n");
+	printf("return_1->cost_of_path = %f\n", return_1->cost_of_path);
+	printf("return-1->is_valid_path = %d\n", (int) return_1->is_valid_path);
+  for(int i = 0; i < seq_n; i++)
+  {
+    printf("return_1->sequence_end_indices[%d] = %d\n", 
+            i, return_1->sequence_end_indices[i]);
+  }
+	return;
+}
+
 
 /* returns @ string of behavior sequence (for now) behavior__behavior__behavior__....behavior*/
-node SMHAstar(PARAM* param)
+node SMHAstar(PARAM* param, node h_start)
 {
 	clock_t start = clock();
 	cout << "Starting IMHA star " << endl;
 
-	std::vector<Queue_p*> qps = initializeQps(param);
+	Queue* qps = initializeQps(param, h_start);
 	node result;
 	result.isEmpty = 1;
 	result.F = numeric_limits<float>::max();
@@ -982,26 +1047,50 @@ node SMHAstar(PARAM* param)
 	best_node_p->G = numeric_limits<float>::max();
 	best_node_p->N = param->N;
 
+	node best_attempt; //criteria is distance to destination
+	best_attempt.isEmpty = 1;
+	best_attempt.F = numeric_limits<float>::max();
+	best_attempt.G = 0;
+	best_attempt.N = param->N;
 
-	while (!(*qps[0]->h_open_p).empty())
+	//convert double to float for time_arra
+	while (!qps[0].h_open.empty())
 	{
 		/* Exit if exceeded the amount of time */
 		clock_t end = clock();
 		float time_elapsed = float(end - start);
-		if (time_elapsed > 30000000)
+
+		if (time_elapsed > 10000000) //10 sec
 		{
 			printf("Exceeded time limit of %f (ms)", time_elapsed);
+			if(result.isEmpty && best_node_p->isEmpty) 
+			memcpy(&result, &best_attempt, sizeof(node));
+			else if(result.isEmpty)
+			memcpy(&result, best_node_p, sizeof(node));
+
 			return result;
 		}
-
+  		
 		for (int queue_i = 1; queue_i < param->q_count; queue_i++)
 		{
 			//Since we will only have 2 queues, I will do some hardcoding
 			//If there are no elements in queue1, then just expand queue0
-			if ((*qps[queue_i]->h_open_p).empty()) {
-				node minKey_0 = (*qps[0]->h_open_p)[0];
+			if (qps[queue_i].h_open.empty()) {
+        /* For debugging purposes */
+       printf("Printing the whole queue0\n");
+        for(int i = 0; i < qps[0].h_open.size(); i++)
+        {
+          printf("[%d].F = %f, .sequence_numel = %d .behaviorIdx = %llu .isEmpty = %d\n", i, 
+            qps[0].h_open[i].F, qps[0].h_open[i].sequence_numel, 
+						qps[0].h_open[i].behaviorIdx, qps[0].h_open[i].isEmpty);
+        }                                 //}				
+				
+
+        node minKey_0 = qps[0].h_open[0];
+				
 				printf("minKey_0.F %f \n", minKey_0.F);
 				printf("best_i.G %f\n", best_node_p->G);
+				
 
 				if (best_node_p->G <= minKey_0.F)
 				{
@@ -1009,17 +1098,14 @@ node SMHAstar(PARAM* param)
 					{
 						printf("DONE WITH SEARCH!! NOW PRINTING RESULTS\n");
 						printf("Current best node cost %f, sequence_numel is %d\n", best_node_p->G, best_node_p->sequence_numel);
-						//print_behavior_sequence(*qps[0]->closed_dict_p, *qps[0]->expanded_number_per_iter_p, qps[0]->best_node);
 						print_distance_left(*best_node_p, param);
 
 						printf("printing sequence...\n");
-						for (int i = 0; i <= best_node_p->sequence_numel; i++)
+						for (int i = 0; i < best_node_p->sequence_numel; i++)
 						{
 							int index = best_node_p->behaviorIndices[i];
-							//printf("hello world????\n");
 							printf("%s, ", behavior_array[index]);
-							//printf("%d ", index);
-						}
+	  	 			}
 						printf("\n");
 
 						memcpy(&result, best_node_p, sizeof(node));
@@ -1032,36 +1118,30 @@ node SMHAstar(PARAM* param)
 				}
 				else
 				{
-					expandStates(qps, param, best_node_p, 0);
+					expandStates(qps, param, best_node_p, &best_attempt, 0);
 				}
-
-				///////////////////////
-
-				//Need to check if best_node has been updated; if so, go with the best node
-				/*
-				printf("queue %d is empty\n", queue_i);
-				for (int queue_j = 0; queue_j < param->q_count; queue_j++)
-				{
-					if (qps[queue_j]->best_node.isEmpty == 0 && qps[queue_j]->best_node.F < result.F) memcpy(&result, &(qps[queue_j]->best_node), sizeof(node));
-				}
-
-				return result;
-				*/
 			}
 			else {
-				node minKey_i = (*qps[queue_i]->h_open_p)[0];
-				node minKey_0 = (*qps[0]->h_open_p)[0];
+				node minKey_i = qps[queue_i].h_open[0];
+				node minKey_0 = qps[0].h_open[0];
 
 				/* Debugging purposes.... */
+        printf("Printing the whole queue0\n");
+        for(int i = 0; i < qps[0].h_open.size(); i++)
+        {
+          printf("[%d].F = %f, .sequence_numel = %d .behaviorIdx = %llu .isEmpty = %d\n", i, 
+            qps[0].h_open[i].F, qps[0].h_open[i].sequence_numel, 
+						qps[0].h_open[i].behaviorIdx, qps[0].h_open[i].isEmpty);
+        }                                 //}				
+				
+
 
 				printf("minKey_i.F, minKey_0.F %f %f \n", minKey_i.F, minKey_0.F);
 				printf("best_i.G %f\n", best_node_p->G);
 
-
 				if (minKey_i.F <= param->H2 * minKey_0.F)
 				{
 					printf("QUEUE %d!!!\n", queue_i);
-					//print_map(minKey_i, param);
 					if (best_node_p->G <= minKey_i.F)
 					{
 						if (best_node_p->G < numeric_limits<float>::max())
@@ -1071,17 +1151,13 @@ node SMHAstar(PARAM* param)
 							printf("Current best node cost %f, sequence_numel is %d\n", best_node_p->G, best_node_p->sequence_numel);
 
 							printf("printing sequence...\n");
-							for (int i = 0; i <= best_node_p->sequence_numel; i++)
+							for (int i = 0; i < best_node_p->sequence_numel; i++)
 							{
 								int index = best_node_p->behaviorIndices[i];
-								//printf("%d ", index);
-								//printf("hello world?");
 								printf("%s, ", behavior_array[index]);
 							}
 							printf("\n");
 
-
-							//print_behavior_sequence(*qps[queue_i]->closed_dict_p, *qps[queue_i]->expanded_number_per_iter_p, qps[queue_i]->best_node);
 							print_distance_left(*best_node_p, param);
 
 							memcpy(&result, best_node_p, sizeof(node));
@@ -1094,29 +1170,25 @@ node SMHAstar(PARAM* param)
 						}
 					}
 					else {
-						expandStates(qps, param, best_node_p, queue_i);
+						expandStates(qps, param, best_node_p, &best_attempt, queue_i);
 					}
 				}
 				else
 				{
 					printf("queue 0!!!\n");
-					//print_map(minKey_0, param);
 					if (best_node_p->G <= minKey_0.F)
 					{
 						if (best_node_p->G < numeric_limits<float>::max())
 						{
 							printf("DONE WITH SEARCH!! NOW PRINTING RESULTS\n");
 							printf("Current best node cost %f, sequence_numel is %d\n", best_node_p->G, best_node_p->sequence_numel);
-							//print_behavior_sequence(*qps[0]->closed_dict_p, *qps[0]->expanded_number_per_iter_p, qps[0]->best_node);
 							print_distance_left(*best_node_p, param);
 
 							printf("printing sequence...\n");
-							for (int i = 0; i <= best_node_p->sequence_numel; i++)
+							for (int i = 0; i < best_node_p->sequence_numel; i++)
 							{
 								int index = best_node_p->behaviorIndices[i];
-								//printf("hello world????\n");
 								printf("%s, ", behavior_array[index]);
-								//printf("%d ", index);
 							}
 							printf("\n");
 
@@ -1130,7 +1202,7 @@ node SMHAstar(PARAM* param)
 					}
 					else
 					{
-						expandStates(qps, param, best_node_p, 0);
+						expandStates(qps, param, best_node_p, &best_attempt, 0);
 					}
 				}
 			}
@@ -1145,14 +1217,15 @@ node SMHAstar(PARAM* param)
 	}
 
 
-	if (result.isEmpty == 1) printf("no route found\n");
+	if (result.isEmpty == 1) {
+		printf("no route found, returning the best attempt\n");
+		memcpy(&result, &best_attempt, sizeof(node));
+	}
 	else {
 		printf("printing sequence...\n");
-		for (int i = 0; i <= result.sequence_numel; i++)
+		for (int i = 0; i < result.sequence_numel; i++)
 		{
 			int index = result.behaviorIndices[i];
-			//printf("%d ", index);
-			//printf("hello world?");
 			printf("%s, ", behavior_array[index]);
 		}
 		printf("\n");
@@ -1168,6 +1241,179 @@ node SMHAstar(PARAM* param)
 }
 
 
+__global__
+void k_SAVE(POS* d_poses, node* d_result, node* d_start, PARAM* d_param)
+{
+	int robot_index = threadIdx.x;
+	/* Error checking */
+	if (robot_index >= d_param->N) return;
+
+	if (robot_index == 0) memcpy(d_poses[0].robot_pos, d_param->robot_pos, sizeof(float)*d_param->N * 3);
+
+	__syncthreads();
+
+	/* Expand the nodes */
+	float dt = d_param->dt;
+	float ti = d_param->ti;
+	float dT = d_param->dT;
+	float tf = d_param->tf;
+	int steps = (int)dT / dt;
+
+	int sequence_count = d_result->sequence_numel;
+
+	node d_local;
+	memcpy(&d_local, d_start, sizeof(node));
+	for (int i = 0; i < sequence_count; i++)
+	{
+
+		for (int j = 1; j <= steps; j++)
+		{
+			/* Forward kinematics -> Save it to POS* -> Update d_local */
+			func[d_result->behaviorIndices[i]](d_start, &d_local, robot_index, dt);
+			__syncthreads();
+			if (robot_index == 0) memcpy(d_poses[i*steps + j].robot_pos, d_start->robot_pos, sizeof(float) * d_param->N * 3);
+			__syncthreads();
+			memcpy(&d_local, d_start, sizeof(node));
+		}
+	}
+
+
+	return;
+
+}
+
+void SAVE_launch(node result_node, RETURN* return_1, PARAM* param)
+{
+	/* Open file and retrieve file id */
+
+	printf("Printing out the sequence...\n");
+	for(int i = 0; i < result_node.sequence_numel; i++)
+	{
+		printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
+	}
+	printf("\n");
+
+	PARAM* d_param; /* device parameters */
+	gpuErrchk(cudaMalloc(&d_param, sizeof(PARAM)));
+	gpuErrchk(cudaMemcpy(d_param, param, sizeof(PARAM), cudaMemcpyHostToDevice));
+
+	node* d_result;
+	gpuErrchk(cudaMalloc(&d_result, sizeof(node)));
+	gpuErrchk(cudaMemcpy(d_result, &result_node, sizeof(node), cudaMemcpyHostToDevice));
+
+	node h_start;
+	h_start.isEmpty = 0;
+	h_start.N = param->N;
+	h_start.sequence_numel = 0;
+	memcpy(&h_start.robot_pos, &param->robot_pos, sizeof(float)*ROBOT_MAX * 3);
+
+
+	/* DEBUGGING!!!! */
+	printf("making sure h_start has correct positions.....\n");
+	for (int i = 0; i < param->N; i++)
+	{
+		printf("(%f %f %f) ", h_start.robot_pos[i][0], h_start.robot_pos[i][1], h_start.robot_pos[i][2]);
+	}
+	printf("\n");
+	/* End of debugging.... */
+
+	node* d_start;
+	gpuErrchk(cudaMalloc(&d_start, sizeof(node)));
+	gpuErrchk(cudaMemcpy(d_start, &h_start, sizeof(node), cudaMemcpyHostToDevice));
+
+
+	int steps = (int)param->dT / param->dt;
+	int seq_n = result_node.sequence_numel;
+	int h_result_size = steps* seq_n + 1;
+	printf("steps, seq_n, %d, %d\n", steps, seq_n);
+	printf("h_result_size is ... %d\n", h_result_size);
+	POS* h_poses = new POS[h_result_size];
+	POS* d_poses;
+	gpuErrchk(cudaMalloc(&d_poses, sizeof(POS) * h_result_size));
+
+
+
+
+	const dim3 gridSize(1, 1, 1);
+	const dim3 blockSize(param->N, 1, 1);
+	k_SAVE << <gridSize, blockSize >> >(d_poses, d_result, d_start, d_param);
+
+	/* Copy back from GPU to CPU */
+	cudaMemcpy(h_poses, d_poses, sizeof(POS) * h_result_size, cudaMemcpyDeviceToHost);
+
+	/* Now save everything onto the txt */
+	cout << "saving everything in txt file" << endl;
+
+
+	//output_f = fopen(output_fname.str().c_str(), "w");
+	int times = 0;
+	printf("H_RESULT_SIZE IS %d\n", h_result_size);
+	for (int i = 0; i < h_result_size; i++)
+	{
+		for (int j = 0; j < param->N; j++)
+		{
+			//fprintf(output_f, (std::to_string(h_poses[i].robot_pos[j][0]) + " " + std::to_string(h_poses[i].robot_pos[j][1])
+			//	+ " " + std::to_string(h_poses[i].robot_pos[j][2]) + "\n").c_str());
+			times++;
+		}
+		//fprintf(output_f, "\n");
+	}
+	return;
+}
+
+
+
+void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
+{
+  printf("Inside smhastar_wrapper\n");
+	node h_start; //starting node
+  h_start.isEmpty = 0;
+	h_start.N = param->N;
+  h_start.sequence_numel = param->sequence_array_count;
+	std::copy(&param->robot_pos[0][0], &param->robot_pos[0][0] + param->N * 3, &h_start.robot_pos[0][0]);
+  h_start.F = param->H * h_calculate_H1(h_start.robot_pos, param, param->N);
+  h_start.G = 0;
+ 	h_start.reached_destination = 0;
+  
+  for(int i = 0; i < h_start.sequence_numel; i++)
+  {
+   	h_start.behaviorIndices[i] = param->sequence_array[i];
+  }		
+
+	printf("Done copying robot_positions param->h_start\n");
+	h_start.F = param->H * h_calculate_H1(h_start.robot_pos, param, h_start.N);
+	h_start.G = 0;
+	h_start.reached_destination = 0;
+
+  if(param->sequence_array_count != 0)
+  {
+    RETURN result_tmp;
+  	noSMHAstar(param, &result_tmp, h_start);  
+	}
+
+	//Need to fix param's time_array, time_array_count?
+
+	node result_node = SMHAstar(param, h_start); //note this result_node might be simply the closest attempt to the goal
+
+	//Need to reset the result_node robot position to initial 
+	std::copy(&param->robot_pos[0][0], &param->robot_pos[0][0] + param->N * 3, 
+		&result_node.robot_pos[0][0]);
+
+	printf("checking the sequence before entering noSMHAstar...\n");
+	printf("result_node sequence count is %d\n", result_node.sequence_numel);
+	for(int i = 0; i < result_node.sequence_numel; i++)
+	{
+		printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
+
+	}
+	printf("\n");
+
+	noSMHAstar(param, result_1, result_node);
+	return;
+
+}
+
+
 
 
 
@@ -1176,60 +1422,43 @@ node SMHAstar(PARAM* param)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void initialize_parameters(PARAM* param)
-{
-	srand(time(0));
+void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vector<int>sequence_array, std::vector<uint8_t> fix_array)
+{ 
+ 
+	param->time_array_count = time_array.size();
+  param->sequence_array_count = sequence_array.size();
+	printf("Inside initialize_params....\n");
+	printf("Length of time_array is %d, Length of sequence is %d\n", time_array.size(), sequence_array.size());
 
-	param->N = 2;
-	param->M = 0; //2
-	param->H = 1;
-	param->mapsize = 20;
-	param->ti = 0;
-	param->dt = 0.1;
-	param->tf = 20;
-	param->dT = 2.5;
-	param->target_center[0] = 0;
-	param->target_center[1] = 0;
-	param->target_radius = 10;
-	param->robot_radius = 0.5;
-	param->q_count = 2;
-	param->H2 = 1;
-
-	/* Initialize robot_pos */
-	float bottom_left_x = -param->mapsize + 1;
-	float bottom_left_y = -param->mapsize + 1;
-	float width = (param->target_radius) * 2;
-	float height = (param->target_radius) * 2;
-
-	int i;
-	for (i = 0; i < param->N; i++)
+	for(int i = 0; i < time_array.size(); i++)
 	{
-		param->robot_pos[i][0] = bottom_left_x + width * ((float)(rand() % 1000)) / 1000;
-		param->robot_pos[i][1] = bottom_left_y + height * ((float)(rand() % 1000)) / 1000;
-		param->robot_pos[i][2] = remainder(((float)(rand() % 1000)) / 1000, 2.0*M_PI);
+		param->time_array[i] = time_array[i];
+	}
+	for(int i = 0; i < sequence_array.size(); i++)
+	{
+		param->sequence_array[i] = sequence_array[i];
+	}
+  /*
+  for(int i = 0; i < param->N; i++)
+	{
+		printf("robot %d pos = %f %f %f\n", i, param->robot_pos[i][0], param->robot_pos[i][1],
+						param->robot_pos[i][2]);
 	}
 
-	/* Initialize obstacle_pos */
-	float obstacle_min_radius = 2;
-	float obstacle_max_radius = 5;
-
-	for (i = 0; i < param->M; i++)
+	for(int i = 0; i < param->M; i++)
 	{
-		param->obstacle_pos[i][0] = fmod(((float)(rand() % 1000)) / 10, (2 * param->mapsize)) - param->mapsize;
-		param->obstacle_pos[i][1] = fmod(((float)(rand() % 1000)) / 10, (2 * param->mapsize)) - param->mapsize;
-		param->obstacle_pos[i][2] = fmod(((float)(rand() % 1000)) / 10, obstacle_max_radius);
-		if (param->obstacle_pos[i][2] < obstacle_min_radius) param->obstacle_pos[i][2] += obstacle_min_radius;
+		printf("obstacle %d pos = %f %f %f\n", i, param->obstacle_pos[i][0], param->obstacle_pos[i][1],
+					param->obstacle_pos[i][2]);
 	}
-
+  */
+  printf("Returning from init params\n");
 	return;
-
 }
-
 
 
 void fix_robot_positions(PARAM* param)
 {
-	param->N = 16;
+	param->N = 10;
 	param->robot_pos[0][0] = -18;
 	param->robot_pos[0][1] = -10;
 	param->robot_pos[0][2] = 0;
@@ -1294,21 +1523,6 @@ void fix_robot_positions(PARAM* param)
 	param->robot_pos[15][1] = -9;
 	param->robot_pos[15][2] = 0;
 
-	param->robot_pos[16][0] = -17;
-	param->robot_pos[16][1] = -9;
-	param->robot_pos[16][2] = 0;
-
-	param->robot_pos[17][0] = -10;
-	param->robot_pos[17][1] = -12;
-	param->robot_pos[17][2] = 0;
-
-	param->robot_pos[18][0] = -12;
-	param->robot_pos[18][1] = -14;
-	param->robot_pos[18][2] = 0;
-
-	param->robot_pos[19][0] = -10;
-	param->robot_pos[19][1] = -14;
-	param->robot_pos[19][2] = 0;
 }
 
 void fix_obstacle_positions(PARAM* param)
@@ -1324,296 +1538,38 @@ void fix_obstacle_positions(PARAM* param)
 }
 
 
-void processParam(std::vector<std::string> tokens, PARAM* param)
+
+
+
+void initialize_result(node* result_node, PARAM* param)
 {
-	// Assign parameters according to the parameter name
-	if (tokens[0] == "N")
-		param->N = std::stof(tokens[1]);
-	else if (tokens[0] == "robot_radius")
-		param->robot_radius = std::stof(tokens[1]);
-	else if (tokens[0] == "M")
-		param->M = std::stof(tokens[1]);
-	else if (tokens[0] == "H")
-		param->H = std::stof(tokens[1]);
-	else if (tokens[0] == "H2")
-		param->H2 = std::stof(tokens[1]);
-	else if (tokens[0] == "q_count")
-		param->q_count = std::stof(tokens[1]);
-	else if (tokens[0] == "mapsize")
-		param->mapsize = std::stof(tokens[1]);
-	else if (tokens[0] == "ti")
-		param->ti = std::stof(tokens[1]);
-	else if (tokens[0] == "tf")
-		param->tf = std::stof(tokens[1]);
-	else if (tokens[0] == "dt")
-		param->dt = std::stof(tokens[1]);
-	else if (tokens[0] == "dT")
-		param->dT = std::stof(tokens[1]);
-	else if (tokens[0] == "target_radius")
-		param->target_radius = std::stof(tokens[1]);
-
-}
-
-
-void loadParametersFromFile(std::string filename, PARAM* param)
-{
-	std::fstream file(filename);
-	std::string str;
-	unsigned int line = 1;
-	size_t comment;
-
-	// Get the parameters from specified file
-	while (std::getline(file, str)) {
-		comment = str.find('#', 0);
-		if (comment != std::string::npos)
-		{
-			continue;
-		}
-
-		// String working variables
-		std::istringstream iss(str);
-		std::vector<std::string> tokens;
-
-		// Place the parameter and value into the token array
-		copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
-
-		// Ensure valid line before processing parameter
-		if (tokens.size() == 2) {
-			processParam(tokens, param);
-		}
-
-		/* Need to process robot_pos, obstacle_pos*/
-		if (tokens.size() == 1) {
-			if (tokens[0] == "robot_pos")
-			{
-				int count = 0;
-				while (count < param->N)
-				{
-					std::getline(file, str);
-					// String working variables
-					std::istringstream iss(str);
-					std::vector<std::string> tokens;
-
-					// Place the parameter and value into the token array
-					copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
-					if (tokens.size() != 3)
-					{
-						printf("Robot pos format wrong in file\n");
-						return;
-					}
-					param->robot_pos[count][0] = std::stof(tokens[0]);
-					param->robot_pos[count][1] = std::stof(tokens[1]);
-					param->robot_pos[count][2] = std::stof(tokens[2]);
-					count++;
-				}
-			}
-			else if (tokens[0] == "obstacle_pos")
-			{
-				int count = 0;
-				while (count < param->M)
-				{
-					std::getline(file, str);
-					// String working variables
-					std::istringstream iss(str);
-					std::vector<std::string> tokens;
-
-					// Place the parameter and value into the token array
-					copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
-					if (tokens.size() != 3)
-					{
-						printf("obstacle pos format wrong in file\n");
-						return;
-					}
-					param->obstacle_pos[count][0] = std::stof(tokens[0]);
-					param->obstacle_pos[count][1] = std::stof(tokens[1]);
-					param->obstacle_pos[count][2] = std::stof(tokens[2]);
-					count++;
-				}
-			}
-			else if (tokens[0] == "target_center")
-			{
-				std::getline(file, str);
-				// String working variables
-				std::istringstream iss(str);
-				std::vector<std::string> tokens;
-
-				// Place the parameter and value into the token array
-				copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
-				if (tokens.size() != 2)
-				{
-					printf("target pos format wrong in file\n");
-					return;
-				}
-				param->target_center[0] = std::stof(tokens[0]);
-				param->target_center[1] = std::stof(tokens[1]);
-
-			}
-		}
-
-		// Move to the next line in the parameters file
-		line++;
-	}
-
+	result_node->isEmpty = 0;
+	result_node->N = param->N;
+	result_node->sequence_numel = param->sequence_array_count;
+	memcpy(&result_node->robot_pos[0][0], &param->robot_pos[0][0], sizeof(float) * param->N * 3);
+	result_node->F = param->H * h_calculate_H1(result_node->robot_pos, param, result_node->N);
+	result_node->G = 0;
+	result_node->reached_destination = 0;
+	memcpy(&result_node->behaviorIndices, &param->sequence_array, sizeof(int)*SEQ_MAX);
 	return;
 }
 
-
-__global__
-void k_SAVE(POS* d_poses, node* d_result, node* d_start, PARAM* d_param)
-{
-	int robot_index = threadIdx.x;
-	/* Error checking */
-	if (robot_index >= d_param->N) return;
-
-	if (robot_index == 0) memcpy(d_poses[0].robot_pos, d_param->robot_pos, sizeof(float)*d_param->N * 3);
-
-	__syncthreads();
-
-	/* Expand the nodes */
-	float dt = d_param->dt;
-	float ti = d_param->ti;
-	float dT = d_param->dT;
-	float tf = d_param->tf;
-	int steps = (int)dT / dt;
-
-	int sequence_count = d_result->sequence_numel + 1;
-
-	node d_local;
-	memcpy(&d_local, d_start, sizeof(node));
-	for (int i = 0; i < sequence_count; i++)
-	{
-
-		for (int j = 1; j <= steps; j++)
-		{
-			/* Forward kinematics -> Save it to POS* -> Update d_local */
-			func[d_result->behaviorIndices[i]](d_start, &d_local, robot_index, dt);
-			__syncthreads();
-			if (robot_index == 0) memcpy(d_poses[i*steps + j].robot_pos, d_start->robot_pos, sizeof(float) * d_param->N * 3);
-			__syncthreads();
-			memcpy(&d_local, d_start, sizeof(node));
-		}
-	}
-
-
-	return;
-
-}
-
-
-void SAVE_launch(node result_node, std::string filename, PARAM* param)
-{
-	/* Open file and retrieve file id */
-	FILE* output_f;
-	std::stringstream output_fname;
-	output_fname << filename;
-
-	PARAM* d_param; /* device parameters */
-	gpuErrchk(cudaMalloc(&d_param, sizeof(PARAM)));
-	gpuErrchk(cudaMemcpy(d_param, param, sizeof(PARAM), cudaMemcpyHostToDevice));
-
-	node* d_result;
-	gpuErrchk(cudaMalloc(&d_result, sizeof(node)));
-	gpuErrchk(cudaMemcpy(d_result, &result_node, sizeof(node), cudaMemcpyHostToDevice));
-
-	node h_start;
-	h_start.isEmpty = 0;
-	h_start.N = param->N;
-	h_start.sequence_numel = -1;
-	memcpy(&h_start.robot_pos, &param->robot_pos, sizeof(float)*ROBOT_MAX * 3);
-
-
-	/* DEBUGGING!!!! */
-	printf("making sure h_start has correct positions.....\n");
-	for (int i = 0; i < param->N; i++)
-	{
-		printf("(%f %f %f) ", h_start.robot_pos[i][0], h_start.robot_pos[i][1], h_start.robot_pos[i][2]);
-	}
-	printf("\n");
-	/* End of debugging.... */
-
-	node* d_start;
-	gpuErrchk(cudaMalloc(&d_start, sizeof(node)));
-	gpuErrchk(cudaMemcpy(d_start, &h_start, sizeof(node), cudaMemcpyHostToDevice));
-
-
-	int steps = (int)param->dT / param->dt;
-	int seq_n = result_node.sequence_numel + 1;
-	int h_result_size = steps* seq_n + 1;
-	printf("steps, seq_n, %d, %d\n", steps, seq_n);
-	printf("h_result_size is ... %d\n", h_result_size);
-	POS* h_poses = new POS[h_result_size];
-	POS* d_poses;
-	gpuErrchk(cudaMalloc(&d_poses, sizeof(POS) * h_result_size));
-
-
-
-
-	const dim3 gridSize(1, 1, 1);
-	const dim3 blockSize(param->N, 1, 1);
-	k_SAVE << <gridSize, blockSize >> >(d_poses, d_result, d_start, d_param);
-
-	/* Copy back from GPU to CPU */
-	cudaMemcpy(h_poses, d_poses, sizeof(POS) * h_result_size, cudaMemcpyDeviceToHost);
-
-	/* Now save everything onto the txt */
-	cout << "saving everything in txt file" << endl;
-
-
-	output_f = fopen(output_fname.str().c_str(), "w");
-	int times = 0;
-	printf("H_RESULT_SIZE IS %d\n", h_result_size);
-	for (int i = 0; i < h_result_size; i++)
-	{
-		for (int j = 0; j < param->N; j++)
-		{
-			fprintf(output_f, (std::to_string(h_poses[i].robot_pos[j][0]) + " " + std::to_string(h_poses[i].robot_pos[j][1])
-				+ " " + std::to_string(h_poses[i].robot_pos[j][2]) + "\n").c_str());
-			times++;
-		}
-		fprintf(output_f, "\n");
-	}
-	return;
-}
-
-
-
-RETURN testmain(int isAided, std::vector<double> time_array, std::vector<long int> sequence_array, std::vector<uint8_t> isFixed)
+RETURN testmain(PARAM* param, int isAided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed)
 {
 	printf("starting\n");
-	PARAM* param = new PARAM[1]; /* Allocate initial parameters on heap */
-								 /* If input param file is not specified, go with the default */
 	RETURN return_1;
 
-	initialize_parameters(param);
-	fix_robot_positions(param);
-	fix_obstacle_positions(param);
-//	
-//	else
-//	{
-//		printf("loading params from file\n");
-//		loadParametersFromFile(argv[1], param);
-//	}
+	initialize_parameters(param, time_array, sequence_array, isFixed);
 
-	// get the route
-
-	node result_node = SMHAstar(param);
-
-
-	if (result_node.isEmpty) return return_1;
-	printf("result_node sequence numel!!!!!!! %d\n", result_node.sequence_numel);
-
-//	if (argc == 4)
-//	{
-		//generate_and_save_positions(sequence_nodes, argv[2], param);
-//		SAVE_launch(result_node, argv[2], param);
-//	}
+	if(isAided) SMHAstar_wrapper(param, &return_1);
+	else {
+		node result_node;
+		initialize_result(&result_node, param);
 	
-	
-		//generate_and_save_positions(sequence_nodes, "output.txt", param);
-		SAVE_launch(result_node, "output.txt", param);
-	
-
-	delete(param);
+		noSMHAstar(param, &return_1, result_node);
+		//printf("after returning from noSMHAstar function....\n");
+		//printf("return_1 cost_of_path = %f\n", return_1.cost_of_path);
+	}
 
 	return return_1;
 }
