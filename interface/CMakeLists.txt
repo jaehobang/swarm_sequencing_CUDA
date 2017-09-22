@@ -155,7 +155,10 @@ set(SOURCE_FILES
   src/popupwidget.cpp
   src/customapplication.h
   src/customapplication.cpp
-
+	src/timehorizonwidget.h
+  src/timehorizonwidget.cpp
+  src/sequencetimewidget.h
+	src/sequencetimewidget.cpp
 )
 
 

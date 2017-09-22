@@ -6,11 +6,13 @@
 #include <string>
 
 #include "timerwidget.h"
-#include "sequencewidget.h"
-#include "switchtimewidget.h"
+//#include "sequencewidget.h"
+//#include "switchtimewidget.h"
 #include "consolewidget.h"
 #include "consolewidget1.h"
 #include "popupwidget.h"
+#include "timehorizonwidget.h"
+#include "sequencetimewidget.h"
 
 #include "custom_messages/R2C.h"
 #include "custom_messages/R2D.h"
@@ -47,15 +49,20 @@ public:
 private Q_SLOTS:
   void generate();
   void next();
+  void submit();
   void timerDone();
 
 private:
   TimerWidget* tw;
-  SequenceWidget* sw;
-  SwitchTimeWidget* stw;
+  //SequenceWidget* sw;
+  //SwitchTimeWidget* stw;
   ConsoleWidget1* cw;
-  QPushButton* gb;
+  QPushButton* rb;
   QPushButton* nb;
+  QPushButton* sb;
+  TimeHorizonWidget* thw;
+	SequenceTimeWidget* stw;
+  QWidget* pw;
 
   rviz::VisualizationManager* manager_;
   rviz::RenderPanel* render_panel_;
@@ -68,7 +75,7 @@ private:
 
   std::vector<string> behavior_array = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
   std::vector<string> behavior_array_short = {"r", "i", "e", "n", "w", "s", "a"};
-  std::vector<string> color_array = {"cyan", "purple", "navy blue", "brown", "dark green", "orange", "pink"};
+  std::vector<QString> color_array = {"cyan", "purple", "blue", "brown", "green", "orange", "pink"};
   string name;
   uint8_t is_aided;
   QString curr_sequence;
@@ -76,6 +83,9 @@ private:
   QString curr_cost;
   QString curr_valid;
   QString curr_complete;
+  int curr_map_number;
+  uint8_t eot_processed;
+
 
   std::vector<int> sequenceInputConvert(QString sequence);
   std::vector<float> switchtimeInputConvert(QString switchtime);

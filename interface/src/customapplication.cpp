@@ -37,7 +37,7 @@ void MyApplication::createHSIWidget()
   uint8_t isAided = this->popup->getIsAided();
   this->myviz->setNodeHandle(this->n);
   this->myviz->setNameAndAided(name, isAided);
-  this->myviz->resize(700, 700);
+  this->myviz->resize(1200, 600);
   this->myviz->show();
   return;
 }

@@ -28,7 +28,7 @@ int errorCheckR2C(const custom_messages::R2C::ConstPtr& msg)
     ROS_INFO("Too many switch times selected....\n");
     return 1;
   }
-  if(msg->is_aided == 0 && msg->sequence_int_array.size() != msg->time_array.size() + 1)
+  if(msg->is_aided == 0 && msg->sequence_int_array.size() != msg->time_array.size())
   {
     ROS_INFO("Number of switch times does not match number of sequence for unaided case....\n");
     return 1;
@@ -110,6 +110,28 @@ void publishMarkerArray()
   }
 
   ROS_INFO("sequence_end_indices.size() is %d", return_struct.sequence_end_indices.size());
+
+  /* We can have maximum of 10 marker array messages 
+     Each marker array message will have 10 markers 
+     Delete all */
+  /*
+  ros::Rate tmp_rate(10);
+  for(int i = 0; i < 10; i++)
+	{
+		for(int j = 0; j < 10; j++)
+		{
+			mk.ns = "robot" + std::to_string(j);
+			if( j == 0) mk.id = 0;
+			else mk.id++;
+			mk.action = visualization_msgs::Marker::DELETE;
+      mk.lifetime = ros::Duration(0.1);
+		  mk_arr.markers.push_back(mk);
+		}
+		cr_publisher.publish(mk_arr);
+		tmp_rate.sleep();
+	}
+  */
+
 
 
   for(int pos_i = 0; pos_i < pos_size; pos_i++)
@@ -391,10 +413,11 @@ void updateMap()
 	//	Also send a visualization_marker_array message to erase the shown trajectory
   ros::Rate cr1_rate(10);
   visualization_msgs::Marker mk;
+  visualization_msgs::MarkerArray mk_arr;
   mk.header.frame_id = "map";
 
 	//2.0 eraseall
-  /*
+  
 	mk.ns = "deleteall";
   mk.id = 0;
   mk.action = visualization_msgs::Marker::DELETEALL;
@@ -402,7 +425,10 @@ void updateMap()
   ros::spinOnce();
   cr1_rate.sleep();
 
-  */
+  mk_arr.markers.push_back(mk);
+  cr_publisher.publish(mk_arr);
+  ros::spinOnce();
+  cr1_rate.sleep();
 	
 
   //2.1 obstacles
@@ -492,8 +518,42 @@ void updateMap()
 
 }
 
+void handleEot(const custom_messages::R2C::ConstPtr& msg)
+{
+  int is_aided = 1;
+  std::vector<float> time_array = msg->time_array;
+  std::vector<int> sequence_array;
+  std::vector<uint8_t> is_fixed;
+  ROS_INFO("going into parsemap");
+  ROS_INFO("came back from parsemap");
+	printf("N = %d, M = %d\n", parameter->N, parameter->M);
+
+  PARAM local_parameter;
+  memcpy(&local_parameter, parameter, sizeof(PARAM));
+  //3. Call the kernel code
+  ROS_INFO("Right before test main parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
+  return_struct = testmain(&local_parameter, is_aided, time_array, sequence_array, is_fixed);  
 
 
+  custom_messages::C2R c2r;  
+
+  for(int i = 0; i < return_struct.sequence_end_indices.size(); i++)
+  {
+    printf("sequence_end_indices for [%d] is %d\n", i,
+      return_struct.sequence_end_indices[i]);
+  }
+
+  c2r.cost_of_path = return_struct.cost_of_path;
+  c2r.is_valid_path = return_struct.is_valid_path;
+  c2r.is_complete = return_struct.is_complete;
+  c2r.sequence_string_array = return_struct.sequence_string_array;
+  c2r.eot = 1; 
+  ci_publisher.publish(c2r);
+	ros::spinOnce();
+ 
+	return;
+
+}
 
 
 void callBack(const custom_messages::R2C::ConstPtr& msg)
@@ -518,6 +578,12 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
 		updateMap();
 		return;
 	}
+
+
+  if(msg->eot == 1){
+		handleEot(msg);
+    return;
+  }
  
   //2. Parse the given message
   int is_aided = (int) msg->is_aided;

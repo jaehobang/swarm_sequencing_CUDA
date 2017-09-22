@@ -35,14 +35,17 @@ void ConsoleWidget1::update(QString sequence, QString switchtime,
     QString v = "Validity of Path: ";
     QString co = "Objective Reached: ";
     QString st = "\n---------------------------------------------\n\n";
+		QString text_info_i = "";
 
-    text_info += st;
-    text_info += i + QString::number(iteration) + "\n";
-    text_info += s + sequence_val + "\n";
-    text_info += sw + switchtime_val + "\n";
-    text_info += c + cost_val + "\n";
-    text_info += v + validity_val + "\n";
-    text_info += co + complete_val + "\n";
+    text_info_i += i + QString::number(iteration) + "\n";
+    text_info_i += s + sequence_val + "\n";
+    text_info_i += sw + switchtime_val + "\n";
+    text_info_i += c + cost_val + "\n";
+    text_info_i += v + validity_val + "\n";
+    text_info_i += co + complete_val + "\n";
+		text_info_i += st;		
+		
+		text_info = text_info_i + text_info;
 
     this->setPlainText(text_info);
     //text_box->setT

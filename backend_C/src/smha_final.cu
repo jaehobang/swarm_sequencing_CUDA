@@ -517,7 +517,7 @@ void k_expandStates(node* d_expanded, node* d_open, PARAM* d_param, int dir, int
 	float dT = d_param->dT;
 	float tf = d_param->tf;
  
-  if(d_open[node_index].sequence_numel >= d_param->time_array_count + 1) {
+  if(d_open[node_index].sequence_numel >= d_param->time_array_count) {
     d_expanded[index].isEmpty = 1;
     return;
   }
@@ -527,7 +527,6 @@ void k_expandStates(node* d_expanded, node* d_open, PARAM* d_param, int dir, int
 
 	if(currSequenceIndex == 0) steps = 
 		(int) d_param->time_array[currSequenceIndex] / dt;
-  else if(currSequenceIndex == d_param->time_array_count) steps = (int) (tf - d_param->time_array[d_param->time_array_count-1]) / dt;
 	else steps = (int) (d_param->time_array[currSequenceIndex] - d_param->time_array[currSequenceIndex - 1]) / dt;
 	/* Only write to global memory once */
 	if (robot_index == 0) d_expanded[index] = d_open[node_index];
@@ -871,7 +870,6 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 		dstart = ti + dstart + dend;
 		dend = d_param->time_array[i];
 		if(i == 0) steps = (int) d_param->time_array[i] / dt;
-		else if(i == sequence_count - 1) steps = (int) (tf - d_param->time_array[i - 1]) / dt;
 		else steps = (int) (d_param->time_array[i] - d_param->time_array[i-1]) / dt;
 		for (int j = 1; j <= steps; j++)
 		{
@@ -912,7 +910,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	printf("\n");
 
 	printf("checking result node also.... sequence_numel is %d\n", result_node.sequence_numel);
-	for(int i = 0; i < param->time_array_count + 1; i++)
+	for(int i = 0; i < param->time_array_count; i++)
 	{
 		printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
 	}
@@ -989,8 +987,6 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
     printf("return_1->sequence_end_indices[%d] = %d\n", 
             i, return_1->sequence_end_indices[i]);
   }
-
-
 	return;
 }
 
