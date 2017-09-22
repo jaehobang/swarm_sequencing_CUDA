@@ -436,6 +436,8 @@ void MyViz::generate()
    r2d.is_aided = this->is_aided;
    id_publisher.publish(r2d);
    ros::spinOnce();
+
+   ROS_INFO("Done with generate()");
    return;
 }
 

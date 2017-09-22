@@ -43,6 +43,7 @@ typedef struct PARAM
   float time_array[SEQ_MAX - 1];
   int time_array_count;
   int sequence_array[SEQ_MAX];
+  int sequence_array_count;
   int fix_count;
 } PARAM;
 

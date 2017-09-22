@@ -938,9 +938,9 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	/* Allocate space on device for sequence_end_indices array, cost_of_path, is_valid_path */
 	float cost_of_path = 0;
 	int is_valid_path = 0;
-	int* h_sequence_end_indices = new int[param->time_array_count + 1];
+	int* h_sequence_end_indices = new int[param->sequence_array_count];
 	int* d_sequence_end_indices;
-	gpuErrchk(cudaMalloc(&d_sequence_end_indices, sizeof(int) * (param->time_array_count + 1)));
+	gpuErrchk(cudaMalloc(&d_sequence_end_indices, sizeof(int) * (param->sequence_array_count)));
 
 
 
@@ -951,7 +951,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	/* Copy back from GPU to CPU */
 	cudaMemcpy(h_poses, d_poses, sizeof(POS) * h_result_size, cudaMemcpyDeviceToHost);
 	cudaMemcpy(h_sequence_end_indices, d_sequence_end_indices, 
-		   sizeof(int) * (param->time_array_count + 1), cudaMemcpyDeviceToHost);
+		   sizeof(int) * (param->sequence_array_count), cudaMemcpyDeviceToHost);
 
 	node* h_result = new node[1];
 	cudaMemcpy(h_result, d_result, sizeof(node), cudaMemcpyDeviceToHost);
@@ -960,6 +960,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	printf("returned from kernel...\n");
 	printf("printing all necessary information to check that kernel returned correctly\n");
 	printf("Cost of path(G) = %f\n",h_result->G);
+  printf("h_result->isEmpty %d\n", h_result->isEmpty);
 	if(h_result->isEmpty == 0) printf("PATH IS VALID\n");
  	else printf("PATH IS INVALID\n");
 
@@ -969,10 +970,16 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	else return_1->is_valid_path = 1;
 	return_1->is_complete = h_result->reached_destination;
 
+  printf("updating robot_positions...\n");
+  printf("h_result_size is %d\n", h_result_size);
 	for(int i = 0; i < h_result_size; i++)
 	{
+    //printf("[%d] x,y,r = (%f %f %f)\n",i, h_poses[i].robot_pos[0][0], h_poses[i].robot_pos[0][1],
+				//	h_poses[i].robot_pos[0][2]); 
 		return_1->robot_positions.push_back(h_poses[i]);
 	}
+  printf("updating sequence end indices and sequence string array\n");
+  printf("seq_n is %d\n", seq_n);
 	for(int i = 0; i < seq_n; i++)
 	{
 		return_1->sequence_end_indices.push_back(h_sequence_end_indices[i]);
@@ -1408,8 +1415,8 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
   */
   
 	param->time_array_count = time_array.size();
-	int fix_count = 0;
-	printf("Inside initialize_params....\n");
+  param->sequence_array_count = sequence_array.size();
+  printf("Inside initialize_params....\n");
 	printf("Length of time_array is %d, Length of sequence is %d\n", time_array.size(), sequence_array.size());
 
 	for(int i = 0; i < time_array.size(); i++)
@@ -1419,7 +1426,6 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
 	for(int i = 0; i < sequence_array.size(); i++)
 	{
 		param->sequence_array[i] = sequence_array[i];
-		if((int) fix_array[i] == 1) fix_count++;
 	}
   /*
   for(int i = 0; i < param->N; i++)
@@ -1434,7 +1440,6 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
 					param->obstacle_pos[i][2]);
 	}
   */
-	param->fix_count = fix_count;
   printf("Returning from init params\n");
 	return;
 }
@@ -1527,9 +1532,9 @@ void fix_obstacle_positions(PARAM* param)
 
 void initialize_result(node* result_node, PARAM* param)
 {
-	result_node->isEmpty = 1;
+	result_node->isEmpty = 0;
 	result_node->N = param->N;
-	result_node->sequence_numel = param->time_array_count + 1;
+	result_node->sequence_numel = param->time_array_count;
 	memcpy(&result_node->robot_pos[0][0], &param->robot_pos[0][0], sizeof(float) * param->N * 3);
 	result_node->F = param->H * h_calculate_H1(result_node->robot_pos, param, result_node->N);
 	result_node->G = 0;
