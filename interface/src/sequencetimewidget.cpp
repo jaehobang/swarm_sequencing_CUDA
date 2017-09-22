@@ -217,8 +217,9 @@ QString SequenceTimeWidget::getSwitchTime()
 				if(sequence_list->item(i,TIME_COL)->text() == "") break;
         cumulative_time += sequence_list->item(i,TIME_COL)->text().toFloat();
         text += QString::number(cumulative_time);
-        if(i != (int) sequence_array.size() - 1) text += ",";
+        text += ",";
     }
+    text.remove(text.size() - 1, 1);
 
     return text;
 }
