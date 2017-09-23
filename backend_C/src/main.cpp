@@ -67,9 +67,9 @@ void getRGB(int* r, int* g, int* b, string behavior)
 			*r=160;
 			*g=32;
 			*b=240;
-	}	else if(behavior == "flock_east"){ //flock_east - navy blue
-			*r=0;
-			*g=0;
+	}	else if(behavior == "flock_east"){ //flock_east - gray
+			*r=128;
+			*g=128;
 			*b=128;
 	}	else if(behavior == "flock_north"){ //floack_north - brown
 			*r=165;
@@ -149,9 +149,9 @@ void publishMarkerArray()
 				mk.id = 0;
 				mk.type = visualization_msgs::Marker::LINE_STRIP;
 				mk.action = visualization_msgs::Marker::ADD;
-				mk.scale.x = 0.1;
-				mk.scale.y = 0.1;
-				mk.scale.z = 0.1;
+				mk.scale.x = 0.2;
+				mk.scale.y = 0.2;
+				mk.scale.z = 0.2;
 				mk.lifetime = ros::Duration();
 				int r,g,b,a;
 				getRGB(&r, &g, &b, return_struct.sequence_string_array[behav_i]);
@@ -264,7 +264,7 @@ void parseMap()
   ROS_INFO("BEFORE parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
   parameter->N = 10;
 	parameter->H = 1;
-  parameter->mapsize = 20;
+  parameter->mapsize = 40;
 	parameter->ti = 0;
 	parameter->dt = 0.1;
 	parameter->tf = 50;

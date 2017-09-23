@@ -51,6 +51,8 @@ private Q_SLOTS:
   void next();
   void submit();
   void timerDone();
+  void checkNext();
+  void nextWrapper();
 
 private:
   TimerWidget* tw;
@@ -63,6 +65,7 @@ private:
   TimeHorizonWidget* thw;
 	SequenceTimeWidget* stw;
   QWidget* pw;
+  QWidget* np;
 
   rviz::VisualizationManager* manager_;
   rviz::RenderPanel* render_panel_;
@@ -75,7 +78,7 @@ private:
 
   std::vector<string> behavior_array = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
   std::vector<string> behavior_array_short = {"r", "i", "e", "n", "w", "s", "a"};
-  std::vector<QString> color_array = {"cyan", "purple", "blue", "brown", "green", "orange", "pink"};
+  std::vector<QString> color_array = {"cyan", "purple", "gray", "brown", "green", "orange", "pink"};
   string name;
   uint8_t is_aided;
   QString curr_sequence;

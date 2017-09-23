@@ -35,7 +35,7 @@ private:
     QString durationtime_text;
     std::vector<QString> behavior_array = { "Rendezvous", "Flocking", "Flock East", "Flock North","Flock West", "Flock South", "Antirendezvous" };
     std::vector<QString> behavior_array_short = {"r", "i", "e", "n", "w", "s", "a"};
-    std::vector<QString> behavior_color_array = {"cyan", "purple", "blue", "brown","green", "orange", "pink"};
+    std::vector<QString> behavior_color_array = {"cyan", "purple", "gray", "brown","green", "orange", "pink"};
     std::vector<QString> sequence_array;
     int curr_selected_sequence_row;
     QString curr_selected_behavior;

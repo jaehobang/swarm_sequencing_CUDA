@@ -71,17 +71,13 @@ void SequenceTimeWidget::generateSequenceList()
     sequence_list->setItem(8, 1, new QTableWidgetItem(""));
     sequence_list->setItem(9, 1, new QTableWidgetItem(""));
 
-    sequence_list->setItem(0, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(1, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(2, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(3, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(4, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(5, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(6, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(7, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(8, 2, new QTableWidgetItem(""));
-    sequence_list->setItem(9, 2, new QTableWidgetItem(""));
 
+		for(int i = 0; i < sequence_list->rowCount(); i++)
+		{
+	    QTableWidgetItem *item = new QTableWidgetItem("");
+  	  item->setFlags(item->flags() ^ Qt::ItemIsEditable);
+			sequence_list->setItem(i, 2, item);
+		}
 
 
     connect( sequence_list, SIGNAL( cellClicked (int, int) ),
@@ -164,7 +160,11 @@ void SequenceTimeWidget::addButtonClicked()
     qInfo() << "curr_selected_behavior is" << curr_selected_behavior;
     int empty_row = 0;
     qInfo() << sequence_list->item(empty_row, SEQ_COL)->text();
-    while(sequence_list->item(empty_row, SEQ_COL)->text() != "") empty_row++;
+    while(sequence_list->item(empty_row, SEQ_COL)->text() != "") {
+      if(empty_row == sequence_list->rowCount() - 1) return;
+			empty_row++;
+    }
+			
     qInfo() << "finished while loop empty_row is " << empty_row;
     sequence_list->item(empty_row, SEQ_COL)->setText(curr_selected_behavior);
     qInfo() << "updated sequence_list";
@@ -180,6 +180,7 @@ void SequenceTimeWidget::deleteButtonClicked()
     qInfo() << "inside deleteButtonClicked";
     qInfo() << "curr_selected_sequence_row is " << curr_selected_sequence_row;
     int clear_row = curr_selected_sequence_row;
+    if( clear_row >= sequence_array.size() ) return;
     sequence_array.erase(sequence_array.begin() + clear_row);
     for(int i = clear_row; i < sequence_list->rowCount(); i++)
     {
@@ -191,7 +192,7 @@ void SequenceTimeWidget::deleteButtonClicked()
     return;
 }
 
-
+//"-5" means sequence modified by user so wrong input
 QString SequenceTimeWidget::getSequence()
 {
 		qInfo() << "Inside get sequence function";
@@ -201,6 +202,7 @@ QString SequenceTimeWidget::getSequence()
 				qInfo() << "Inside Loop" << i;
         int index = std::find(behavior_array.begin(), behavior_array.end(),
                               sequence_array[i]) - behavior_array.begin();
+				if(index == behavior_array.size()) return QString("-5");
         text += behavior_array_short[index];
         if(i != (int) sequence_array.size() - 1) text += ",";
     }
@@ -208,6 +210,9 @@ QString SequenceTimeWidget::getSequence()
     return text;
 }
 
+
+//"-1" signifies one or more inputs not a number
+//"-2" signifies time summation over 50
 QString SequenceTimeWidget::getSwitchTime()
 {
     QString text = "";
@@ -215,12 +220,17 @@ QString SequenceTimeWidget::getSwitchTime()
     for(int i = 0; i < (int) sequence_list->rowCount(); i++)
     {
 				if(sequence_list->item(i,TIME_COL)->text() == "") break;
+        bool ok;
+        float duration = sequence_list->item(i,TIME_COL)->text().toFloat(&ok);
+        if(ok == 0){
+          return QString("-1");
+        }
         cumulative_time += sequence_list->item(i,TIME_COL)->text().toFloat();
         text += QString::number(cumulative_time);
         text += ",";
     }
     text.remove(text.size() - 1, 1);
-
+		if(cumulative_time > 50) return QString("-2");
     return text;
 }
 

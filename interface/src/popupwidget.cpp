@@ -9,7 +9,7 @@ PopupWidget::PopupWidget(QWidget *parent) : QWidget( parent )
     //popup->setAttribute(Qt::WA_DeleteOnClose);
     name_val = "";
     isAided = 2;
-    name_ = new QLabel("Name:");
+    name_ = new QLabel("ID:");
     name = new QLineEdit(); 
     aid_but = new QPushButton("Aided");
     unaid_but = new QPushButton("Unaided");

@@ -66,8 +66,8 @@ __device__
 void d_robot_model_i(node* current, int i, float u_v, float u_w, float dt)
 {
 	int N = current->N;
-	float max_linear_velocity = 2;
-	float max_angular_velocity = CUDART_PI_F / 8;
+	float max_linear_velocity = 4; //Doubled max linear, angular velocity by 2
+	float max_angular_velocity = CUDART_PI_F / 4;
 	u_v = fmaxf(-max_linear_velocity, fminf(max_linear_velocity, u_v));
 	u_w = fmaxf(-max_angular_velocity, fminf(max_angular_velocity, u_w));
 	current->robot_pos[i][0] = current->robot_pos[i][0] + u_v*cosf(current->robot_pos[i][2])*dt;
@@ -82,8 +82,8 @@ void d_antirendezvous(node* future, node *current, int i, float dt)
 {
 	//printf("Inside rendezvous\n");
 	float connectivity_radius = 20;
-	float gain_v = 1;
-	float gain_w = 1;
+	float gain_v = 2;
+	float gain_w = 2;
 	int N = current->N;
 	float v[2], dv[2], b[2];
 	float w, n;
@@ -142,8 +142,8 @@ void d_rendezvous(node* future, node *current, int i, float dt)
 {
 	//printf("Inside rendezvous\n");
 	float connectivity_radius = 20;
-	float gain_v = 1;
-	float gain_w = 1;
+	float gain_v = 2;
+	float gain_w = 2;
 	int N = current->N;
 	float v[2], dv[2], b[2];
 	float w, n;
@@ -203,8 +203,8 @@ void d_flock_biased(node* future, node *current, int i, float* bias, float dt)
 	float repulsion_radius = 5;
 	float alignment_radius = 10;
 	float attraction_radius = 20;
-	float gain_v = 1;
-	float gain_w = 1;
+	float gain_v = 2;
+	float gain_w = 2;
 	float position_i[2], position_j[2];
 	float heading_i, heading_j;
 	float v[2], d[2], dv[2], b[2];

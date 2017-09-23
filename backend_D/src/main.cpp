@@ -137,10 +137,16 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
 	myfile.close();
 	return ;
 
+}
+/*
+void callBackC2D(const custom_messages::C2D::ConstPtr& msg)
+{
+  
+  return;
 
 
 }
-
+*/
 
 
 int main(int argc, char** argv)
@@ -153,7 +159,7 @@ int main(int argc, char** argv)
 	ros::NodeHandle n;
 	ROS_INFO("Starting backend_D node..\n");
 	ros::Subscriber d_subscriber = n.subscribe<custom_messages::R2D>("/hsi/R2D", 10000, callBack);
-
+  //ros::Subscriber dc_subscriber = n.subscribe<custom_messages::C2D>("/hsi/C2D", 100, callBackC2D);
 	ros::spin();
 	return 0;
 }

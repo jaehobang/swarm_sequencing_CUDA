@@ -4,7 +4,9 @@
 #include "rviz/visualization_manager.h"
 #include "rviz/render_panel.h"
 #include "rviz/display.h"
-
+#include "rviz/yaml_config_reader.h"
+#include "rviz/config.h"
+#include "rviz/yaml_config_writer.h"
 
 MyViz::MyViz( QWidget* parent) : QWidget( parent )
 {
@@ -41,7 +43,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   connect(tw, SIGNAL(signalDone()), this, SLOT(timerDone()));
   connect(rb, SIGNAL(released()), this, SLOT(generate()));
-  connect(nb, SIGNAL(released()), this, SLOT(next()));
+  connect(nb, SIGNAL(released()), this, SLOT(checkNext()));
 	connect(sb, SIGNAL(released()), this, SLOT(submit()));
 
   QVBoxLayout* col1 = new QVBoxLayout();
@@ -77,6 +79,19 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   manager_->initialize();
   manager_->startUpdate();
   
+
+  rviz::Config config;
+  
+  rviz::YamlConfigReader* reader = new rviz::YamlConfigReader();
+  reader->readFile( config, "/home/jaeho-linux/hri2017/src/tmp1.rviz" );
+  //Check that config file is loading what I am expecting.....
+  printf("config object validity check %d\n", (int) config.isValid());
+
+
+  manager_->load( config );
+
+  /*
+
   trajectory_ = manager_->createDisplay( "rviz/MarkerArray", "Marker Array", true );
   ROS_ASSERT( trajectory_ != NULL );
 
@@ -89,17 +104,24 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   map_->subProp("Marker Topic")->setValue("visualization_marker");
   map_->subProp("Queue Size")->setValue(10);
 
-  rviz::Display* grid_ = manager_->createDisplay( "rviz/Grid", "adjustable grid", true);
-  ROS_ASSERT( grid_ != NULL);
-  grid_->subProp("Plane Cell Count")->setValue(40);
-  grid_->subProp("Line Style")->setValue("Lines");
-  grid_->subProp("Plane")->setValue("XY");
+  //rviz::Display* grid_ = manager_->createDisplay( "rviz/Grid", "adjustable grid", true);
+  //ROS_ASSERT( grid_ != NULL);
+  //grid_->subProp("Plane Cell Count")->setValue(40);
+  //grid_->subProp("Line Style")->setValue("Lines");
+  //grid_->subProp("Plane")->setValue("XY");
 
   rviz::Display* axes_ = manager_->createDisplay( "rviz/Axes", "xyz", true);
   ROS_ASSERT( axes_ != NULL);
 
   axes_->subProp("Length")->setValue(5);
   axes_->subProp("Radius")->setValue(0.1);
+
+  rviz::YamlConfigWriter* writer = new rviz::YamlConfigWriter();
+  manager_->save(config);
+  writer->writeFile(config, "/home/jaeho-linux/hri2017/tmp1.rviz");
+  if(writer->error()) {qInfo() << writer->errorMessage();}  
+
+  */
 
 }
 
@@ -144,30 +166,17 @@ void MyViz::timerDone()
 std::vector<int> MyViz::sequenceInputConvert(QString sequence)
 {
    std::vector<int> b_array;
+   if(sequence == "") return b_array;
+
    QRegExp rx("[,]");// match a comma or a space
    QStringList slist = sequence.split(rx, QString::SkipEmptyParts);
-
-   if(slist.size() > 10){
-     printf("Too many sequences given!!\n");
-     b_array.push_back(-1);
-     return b_array;
-   }
 
    for(int i = 0; i < slist.size(); i++)
    {
       string s = slist.at(i).toStdString();
-      int pos = behavior_array_short.size();
-      for(int j = 0; j < behavior_array_short.size(); j++)
-			{
-				if(behavior_array_short[j] == s) pos = j;
-      }
-      if(pos >= behavior_array_short.size())
-			{
-				printf("Wrong sequence input!!\n");
-			  b_array.push_back(-1);
-				return b_array;
-			}
-			b_array.push_back(pos);
+      int index = std::find(behavior_array_short.begin(), 
+				behavior_array_short.end(), s) - behavior_array_short.begin();
+			b_array.push_back(index);
    }
 
    return b_array;
@@ -178,6 +187,7 @@ std::vector<int> MyViz::sequenceInputConvert(QString sequence)
 std::vector<float> MyViz::switchtimeInputConvert(QString switchtime)
 {
    std::vector<float> s_array;
+   if(switchtime == "") return s_array;
    QRegExp rx("[,]");// match a comma or a space
    QStringList slist = switchtime.split(rx, QString::SkipEmptyParts);
    bool correct_format;
@@ -222,44 +232,14 @@ void MyViz::submit()
  
    ROS_INFO("Inside submit()");
 
-   if(this->is_aided == 0)
-   {
-     sequence = stw->getSequence();
-     qInfo() << "Sequence is" << stw->getSequence();
-     //ROS_INFO("sequence is %s", sequence.toStdString().c_str());
-     this->curr_sequence = sequence;
- 	   sequence_arr = this->sequenceInputConvert(sequence);
-     //3. if invalid
-  	 if(sequence_arr[0] == -1){
-	     //Generate a popup message and return without generating
-       QWidget* popup = new QWidget();
-       popup->setAttribute(Qt::WA_DeleteOnClose);
-       QLabel* lab = new QLabel("Sequence you generated is invalid!!\nPlease try again!");
-       QPushButton* but = new QPushButton("Close");
+   sequence = stw->getSequence();
+   qInfo() << "Sequence is" << stw->getSequence();
+  
+   if(sequence == "-5"){
 
-       connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-       QVBoxLayout* layout = new QVBoxLayout();
-       layout->addWidget(lab);
-       layout->addWidget(but);
-
-       popup->setLayout(layout);
-       popup->show();
-		   return;
-     }
-   }
-
-   switchtime = stw->getSwitchTime();
-   this->curr_switchtime = switchtime;
-   qInfo() << this->curr_switchtime;
-
-   //2. Running the input checker
-   switchtime_arr = this->switchtimeInputConvert(switchtime);
-   if(switchtime_arr[0] == -1){
-     //Generate a popup message and return without generating
      QWidget* popup = new QWidget();
      popup->setAttribute(Qt::WA_DeleteOnClose);
-     QLabel* lab = new QLabel("Switch time you generated is invalid!!\nPlease try again!");
+     QLabel* lab = new QLabel("ERROR!\nMisspelled behavior in Sequence!!");
      QPushButton* but = new QPushButton("Close");
 
      connect(but, SIGNAL(released()), popup, SLOT(close()));
@@ -272,6 +252,83 @@ void MyViz::submit()
      popup->show();
 		 return;
    }
+
+
+    //ROS_INFO("sequence is %s", sequence.toStdString().c_str());
+   this->curr_sequence = sequence;
+ 	 sequence_arr = this->sequenceInputConvert(sequence);
+     //3. if invalid
+     //Generate a popup message and return without generating
+    
+  
+   switchtime = stw->getSwitchTime();
+   this->curr_switchtime = switchtime;
+   qInfo() << this->curr_switchtime;
+
+   
+  //Generate a popup message and return without generating
+	 if(switchtime == "-1" || switchtime == "-2" ){
+   
+     QWidget* popup = new QWidget();
+     popup->setAttribute(Qt::WA_DeleteOnClose);
+     QString lab_text;
+     if(switchtime == "-1") lab_text = QString("ERROR!\nInput is not a int or floating point number.");
+     else lab_text = QString("ERROR!\nTotal time input exceeded maximum simulation time (50 seconds)!");
+     QLabel* lab = new QLabel(lab_text);
+     QPushButton* but = new QPushButton("Close");
+
+     connect(but, SIGNAL(released()), popup, SLOT(close()));
+
+     QVBoxLayout* layout = new QVBoxLayout();
+   	 layout->addWidget(lab);
+   	 layout->addWidget(but);
+
+   	 popup->setLayout(layout);
+     popup->show();
+     return;
+   }   
+
+   //2. Running the input checker
+   switchtime_arr = this->switchtimeInputConvert(switchtime);
+
+   if(sequence_arr.size() > switchtime_arr.size()){
+     QWidget* popup = new QWidget();
+     popup->setAttribute(Qt::WA_DeleteOnClose);
+     QString lab_text = QString("");
+     QLabel* lab = new QLabel("ERROR\nMore behaviors given than durations!!");
+     QPushButton* but = new QPushButton("Close");
+
+     connect(but, SIGNAL(released()), popup, SLOT(close()));
+
+     QVBoxLayout* layout = new QVBoxLayout();
+     layout->addWidget(lab);
+     layout->addWidget(but);
+
+     popup->setLayout(layout);
+     popup->show();
+     return;
+
+   }
+   
+   if(is_aided == 0 && sequence_arr.size() != switchtime_arr.size()){
+     QWidget* popup = new QWidget();
+     popup->setAttribute(Qt::WA_DeleteOnClose);
+     QString lab_text = QString("");
+     QLabel* lab = new QLabel("ERROR\nNumber of Behaviors must match number of durations!!");
+     QPushButton* but = new QPushButton("Close");
+
+     connect(but, SIGNAL(released()), popup, SLOT(close()));
+
+     QVBoxLayout* layout = new QVBoxLayout();
+     layout->addWidget(lab);
+     layout->addWidget(but);
+
+     popup->setLayout(layout);
+     popup->show();
+     return;
+
+   }
+
 
 	 //Debugging....
 	 ROS_INFO("switchtime_arr.size() = %d, sequence_arr.size() = %d", switchtime_arr.size(), sequence_arr.size());
@@ -293,16 +350,15 @@ void MyViz::submit()
 		color_timehorizon.push_back( color );
    }
    
-   if(is_aided == 0)
-	 	 this->thw->setValues(switchtime_timehorizon, color_timehorizon);
-	 else{
-     for(int i = 0; i < switchtime_arr.size(); i++)
-     {
-       QString color = QString("black");
-       color_timehorizon.push_back( color );
-     }
-     this->thw->setValues(switchtime_timehorizon, color_timehorizon);
+	 int offset = 0;
+   while(sequence_arr.size() + offset != switchtime_arr.size()){
+     color_timehorizon.push_back(QString("black"));
+     offset++;
    }
+
+	 this->thw->setValues(switchtime_timehorizon, color_timehorizon);
+   
+   
 	  
 	 return;
 
@@ -327,7 +383,7 @@ void MyViz::generate()
      this->curr_sequence = sequence;
  	   sequence_arr = this->sequenceInputConvert(sequence);
      //3. if invalid
-  	 if(sequence_arr[0] == -1){
+  	 if(sequence_arr.size() != 0 && sequence_arr[0] == -1){
 	     //Generate a popup message and return without generating
        QWidget* popup = new QWidget();
        popup->setAttribute(Qt::WA_DeleteOnClose);
@@ -441,6 +497,39 @@ void MyViz::generate()
    return;
 }
 
+
+void MyViz::checkNext()
+{
+   np = new QWidget();
+   np->setAttribute(Qt::WA_DeleteOnClose);
+   QLabel* lab = new QLabel("Are you sure you want to move to the next map?");
+   QPushButton* yes_but = new QPushButton("Yes");
+   QPushButton* no_but = new QPushButton("No");
+
+   connect(yes_but, SIGNAL(released()), this, SLOT(nextWrapper()));
+   connect(no_but, SIGNAL(released()), np, SLOT(close()));
+
+	 QHBoxLayout* layouth = new QHBoxLayout();
+   layouth->addWidget(yes_but);
+   layouth->addWidget(no_but);
+
+   QVBoxLayout* layout = new QVBoxLayout();
+   layout->addWidget(lab);
+   layout->addLayout(layouth);
+
+   np->setLayout(layout);
+   np->show();
+  
+}
+
+void MyViz::nextWrapper()
+{
+    np->close();
+    this->next();
+    return;
+}
+
+
 void MyViz::next()
 {
     //Reset everything for every component and update the map to the next one
@@ -477,6 +566,8 @@ void MyViz::next()
     	pw = new QWidget();
 			pw->setAttribute(Qt::WA_DeleteOnClose);
 			QLabel* lab = new QLabel("Please wait......");
+      QPushButton* but = new QPushButton("Close");
+
 			QVBoxLayout* layout = new QVBoxLayout();
 			layout->addWidget(lab);
 			pw->show();
