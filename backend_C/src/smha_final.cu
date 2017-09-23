@@ -900,7 +900,7 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 }
 
 
-void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
+void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
 {
 	/* Only for debugging purposes need to make sure that all the info is delivered correctly */
 	printf("Inside noSMHAstar.....\n");
@@ -911,10 +911,10 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	}
 	printf("\n");
 
-	printf("checking result node also.... sequence_numel is %d\n", result_node.sequence_numel);
+	printf("checking result node also.... sequence_numel is %d\n", result_node->sequence_numel);
 	for(int i = 0; i < param->time_array_count; i++)
 	{
-		printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
+		printf("%s ", behavior_array[result_node->behaviorIndices[i]]);
 	}
 	printf("\n");
 
@@ -926,10 +926,10 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 
 	node* d_result;
 	gpuErrchk(cudaMalloc(&d_result, sizeof(node)));
-	gpuErrchk(cudaMemcpy(d_result, &result_node, sizeof(node), cudaMemcpyHostToDevice));
+	gpuErrchk(cudaMemcpy(d_result, result_node, sizeof(node), cudaMemcpyHostToDevice));
 
 
-	int seq_n = result_node.sequence_numel;
+	int seq_n = result_node->sequence_numel;
 	int h_result_size = param->tf / param->dt + 1;
 	printf("h_result_size is ... %d\n", h_result_size);
 	POS* h_poses = new POS[h_result_size];
@@ -955,22 +955,21 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	cudaMemcpy(h_sequence_end_indices, d_sequence_end_indices, 
 		   sizeof(int) * (param->sequence_array_count), cudaMemcpyDeviceToHost);
 
-	node* h_result = new node[1];
-	cudaMemcpy(h_result, d_result, sizeof(node), cudaMemcpyDeviceToHost);
+	cudaMemcpy(result_node, d_result, sizeof(node), cudaMemcpyDeviceToHost);
 
 	
 	printf("returned from kernel...\n");
 	printf("printing all necessary information to check that kernel returned correctly\n");
-	printf("Cost of path(G) = %f\n",h_result->G);
-  printf("h_result->isEmpty %d\n", h_result->isEmpty);
-	if(h_result->isEmpty == 0) printf("PATH IS VALID\n");
+	printf("Cost of path(G) = %f\n", result_node->G);
+  printf("h_result->isEmpty %d\n", result_node->isEmpty);
+	if(result_node->isEmpty == 0) printf("PATH IS VALID\n");
  	else printf("PATH IS INVALID\n");
 
 	/* Copy all the necessary information back to return struct */
-  return_1->cost_of_path = h_result->G;
-	if(h_result->isEmpty) return_1->is_valid_path = 0;
+  return_1->cost_of_path = result_node->G;
+	if(result_node->isEmpty) return_1->is_valid_path = 0;
 	else return_1->is_valid_path = 1;
-	return_1->is_complete = h_result->reached_destination;
+	return_1->is_complete = result_node->reached_destination;
 
   printf("updating robot_positions...\n");
   printf("h_result_size is %d\n", h_result_size);
@@ -985,7 +984,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	for(int i = 0; i < seq_n; i++)
 	{
 		return_1->sequence_end_indices.push_back(h_sequence_end_indices[i]);
-		return_1->sequence_string_array.push_back(behavior_array_display[result_node.behaviorIndices[i]]);
+		return_1->sequence_string_array.push_back(behavior_array_display[result_node->behaviorIndices[i]]);
 	}
 
 	printf("making sure that return struct has necessary info...\n");
@@ -1330,11 +1329,14 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 
 	h_start.isEmpty = 0;
 	h_start.N = param->N;
-	//h_start.sequence_numel = param->sequence_array_count;
+	h_start.sequence_numel = param->sequence_array_count;
   
+  for(int i = 0; i < h_start.sequence_numel; i++)
+  {
+    h_start.behaviorIndices[i] = param->sequence_array[i];
+  }
 
 	printf("Inside smhastar_wrapper, param->N = %d\n", param->N);
-
 
 	std::copy(&param->robot_pos[0][0], &param->robot_pos[0][0] + param->N * 3, &h_start.robot_pos[0][0]);
 
@@ -1343,9 +1345,11 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 	h_start.G = 0;
 	h_start.reached_destination = 0;
 	
-  //RETURN result_tmp;
-  //noSMHAstar(param, &result_tmp, result_node);
+  if(h_start.sequence_numel != 0){
 
+    RETURN result_tmp;
+    noSMHAstar(param, &result_tmp, &h_start);
+  }
 
 	node result_node = SMHAstar(param, h_start); //note this result_node might be simply the closest attempt to the goal
 
@@ -1362,7 +1366,7 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 	}
 	printf("\n");
 
-	noSMHAstar(param, result_1, result_node);
+	noSMHAstar(param, result_1, &result_node);
 	return;
 
 }
@@ -1562,7 +1566,7 @@ RETURN testmain(PARAM* param, int isAided, std::vector<float> time_array, std::v
 		node result_node;
 		initialize_result(&result_node, param);
 	
-		noSMHAstar(param, &return_1, result_node);
+		noSMHAstar(param, &return_1, &result_node);
 		//printf("after returning from noSMHAstar function....\n");
 		//printf("return_1 cost_of_path = %f\n", return_1.cost_of_path);
 	}
