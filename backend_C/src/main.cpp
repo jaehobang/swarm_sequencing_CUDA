@@ -456,7 +456,7 @@ void updateMap()
     mk.color.r = 0;
     mk.color.g = 0;
     mk.color.b = 1;
-    mk.color.a = 1;
+    mk.color.a = 0.5;
     mk.lifetime = ros::Duration();
   	cr1_publisher.publish(mk);
 		ros::spinOnce();
@@ -509,7 +509,7 @@ void updateMap()
   mk.color.r = 1;
   mk.color.g = 0;
   mk.color.b = 0;
-  mk.color.a = 1;
+  mk.color.a = 0.3;
   mk.lifetime = ros::Duration();
   cr1_publisher.publish(mk);
   ros::spinOnce();
