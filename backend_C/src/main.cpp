@@ -58,32 +58,32 @@ void publishC2R()
 
 void getRGB(int* r, int* g, int* b, string behavior)
 { 
- // ROS_INFO("Inside getRGB, the color requested is %s", behavior.c_str());
-	if(behavior == "rendezvous"){//rendezvous - cyan
+ ROS_INFO("Inside getRGB, behavior is %s", behavior.c_str());
+	if(behavior == "Rendezvous"){//rendezvous - cyan
 			*r=0;
 			*g=255;
 			*b=255;
-	} else if(behavior == "flocking"){ //flocking - purple
+	} else if(behavior == "Flocking"){ //flocking - purple
 			*r=160;
 			*g=32;
 			*b=240;
-	}	else if(behavior == "flock_east"){ //flock_east - gray
+	}	else if(behavior == "Flock East"){ //flock_east - gray
 			*r=128;
 			*g=128;
 			*b=128;
-	}	else if(behavior == "flock_north"){ //floack_north - brown
+	}	else if(behavior == "Flock North"){ //floack_north - brown
 			*r=165;
 			*g=42;
 			*b=42;
-	}	else if(behavior ==  "flock_west"){ //flock_west - darkgreen
+	}	else if(behavior ==  "Flock West"){ //flock_west - darkgreen
 			*r=0;
 			*g=100;
 			*b=0;
-	}	else if(behavior ==  "flock_south"){ //flock_south - orange
+	}	else if(behavior ==  "Flock South"){ //flock_south - orange
 			*r=255;
 			*g=165;
 			*b=0;
-	} else if(behavior == "antirendezvous"){ //antirendezvous - pink
+	} else if(behavior == "Antirendezvous"){ //antirendezvous - pink
 			*r=255;
 			*g=20;
 			*b=147;

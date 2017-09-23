@@ -668,15 +668,15 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   
   //4. Update the Console Widget
   ROS_INFO("Done sending R2D, now updating console");
-  if(this->is_aided){
-    string s = "";
-    for(int i = 0; i < sequence_string_array.size(); i++)
-		{
-			s += sequence_string_array[i];
-      if( i != sequence_string_array.size() - 1 ) s += "->";
-    }
-    this->curr_sequence = QString::fromStdString(s);
+  string s = "";
+  for(int i = 0; i < sequence_string_array.size(); i++)
+  {
+		s += sequence_string_array[i];
+    if( i != sequence_string_array.size() - 1 ) s += "->";
   }
+  this->curr_sequence = QString::fromStdString(s);
+     
+
   this->curr_cost = QString::number(cost_of_path);
   if(is_valid_path == 1) this->curr_valid = "VALID";
   else this->curr_valid = "INVALID";
@@ -685,6 +685,7 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   cw->update(this->curr_sequence, this->curr_switchtime, 
 						 this->curr_cost, this->curr_valid, this->curr_complete);
 
+  ROS_INFO("Console is done being updated!");
 
   if(is_aided){
 
@@ -701,6 +702,7 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
       curr_sequence_short += QString::fromStdString(behavior_array_short[index]);
       if(i != sequence_string_array.size() - 1) curr_sequence_short += ",";
     }
+
 
     switchtime_arr = this->switchtimeInputConvert(this->curr_switchtime);
     sequence_arr = this->sequenceInputConvert(curr_sequence_short);

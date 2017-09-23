@@ -36,6 +36,8 @@ using namespace std;
 
 char *behavior_array[DIR] = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
 
+std::vector<string> behavior_array_display = {"Rendezvous", "Flocking", "Flock East", "Flock North", "Flock West", "Flock South", "Antirendezvous"};
+
 /* Error Checking..... */
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
@@ -983,7 +985,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node result_node)
 	for(int i = 0; i < seq_n; i++)
 	{
 		return_1->sequence_end_indices.push_back(h_sequence_end_indices[i]);
-		return_1->sequence_string_array.push_back(behavior_array[result_node.behaviorIndices[i]]);
+		return_1->sequence_string_array.push_back(behavior_array_display[result_node.behaviorIndices[i]]);
 	}
 
 	printf("making sure that return struct has necessary info...\n");
@@ -1328,7 +1330,8 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 
 	h_start.isEmpty = 0;
 	h_start.N = param->N;
-	h_start.sequence_numel = 0;
+	//h_start.sequence_numel = param->sequence_array_count;
+  
 
 	printf("Inside smhastar_wrapper, param->N = %d\n", param->N);
 
@@ -1340,6 +1343,10 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 	h_start.G = 0;
 	h_start.reached_destination = 0;
 	
+  //RETURN result_tmp;
+  //noSMHAstar(param, &result_tmp, result_node);
+
+
 	node result_node = SMHAstar(param, h_start); //note this result_node might be simply the closest attempt to the goal
 
 	//Need to reset the result_node robot position to initial 

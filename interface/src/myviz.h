@@ -76,7 +76,7 @@ private:
   ros::Publisher id_publisher;
   ros::Subscriber ic_subscriber;
 
-  std::vector<string> behavior_array = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
+  std::vector<string> behavior_array = { "Rendezvous", "Flocking", "Flock East", "Flock North", "Flock West", "Flock South", "Antirendezvous" };
   std::vector<string> behavior_array_short = {"r", "i", "e", "n", "w", "s", "a"};
   std::vector<QString> color_array = {"cyan", "purple", "gray", "brown", "green", "orange", "pink"};
   string name;
