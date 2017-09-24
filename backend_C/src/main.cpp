@@ -58,7 +58,7 @@ void publishC2R()
 
 void getRGB(int* r, int* g, int* b, string behavior)
 { 
- ROS_INFO("Inside getRGB, behavior is %s", behavior.c_str());
+// ROS_INFO("Inside getRGB, behavior is %s", behavior.c_str());
 	if(behavior == "Rendezvous"){//rendezvous - cyan
 			*r=0;
 			*g=255;

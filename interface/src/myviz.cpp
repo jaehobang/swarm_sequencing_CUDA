@@ -30,7 +30,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   stw = new SequenceTimeWidget(this);
 
 
-  rb = new QPushButton(QApplication::translate("childwidget", "Generate"), this);
+  rb = new QPushButton(QApplication::translate("childwidget", "Run"), this);
   nb = new QPushButton(QApplication::translate("childwidget", "Next"), this); 
   sb = new QPushButton(QApplication::translate("childwidget", "Submit"), this);
 
@@ -192,12 +192,6 @@ std::vector<float> MyViz::switchtimeInputConvert(QString switchtime)
    QStringList slist = switchtime.split(rx, QString::SkipEmptyParts);
    bool correct_format;
 
-   if(slist.size() > 9){
-     printf("Too many switchtimes given!!\n");
-     s_array.push_back(-1);
-     return s_array;
-   }
-
    for(int i = 0; i < slist.size(); i++)
    {
       float s = slist.at(i).toFloat(&correct_format);
@@ -236,20 +230,8 @@ void MyViz::submit()
    qInfo() << "Sequence is" << stw->getSequence();
   
    if(sequence == "-5"){
-
-     QWidget* popup = new QWidget();
-     popup->setAttribute(Qt::WA_DeleteOnClose);
-     QLabel* lab = new QLabel("ERROR!\nMisspelled behavior in Sequence!!");
-     QPushButton* but = new QPushButton("Close");
-
-     connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-     QVBoxLayout* layout = new QVBoxLayout();
-     layout->addWidget(lab);
-     layout->addWidget(but);
-
-     popup->setLayout(layout);
-     popup->show();
+     QString str = QString("ERROR!\nMisspelled behavior in Sequence!!");
+     this->generateErrorPopup(str);
 		 return;
    }
 
@@ -269,22 +251,10 @@ void MyViz::submit()
   //Generate a popup message and return without generating
 	 if(switchtime == "-1" || switchtime == "-2" ){
    
-     QWidget* popup = new QWidget();
-     popup->setAttribute(Qt::WA_DeleteOnClose);
      QString lab_text;
      if(switchtime == "-1") lab_text = QString("ERROR!\nInput is not a int or floating point number.");
      else lab_text = QString("ERROR!\nTotal time input exceeded maximum simulation time (50 seconds)!");
-     QLabel* lab = new QLabel(lab_text);
-     QPushButton* but = new QPushButton("Close");
-
-     connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-     QVBoxLayout* layout = new QVBoxLayout();
-   	 layout->addWidget(lab);
-   	 layout->addWidget(but);
-
-   	 popup->setLayout(layout);
-     popup->show();
+     this->generateErrorPopup(lab_text);
      return;
    }   
 
@@ -292,41 +262,28 @@ void MyViz::submit()
    switchtime_arr = this->switchtimeInputConvert(switchtime);
 
    if(sequence_arr.size() > switchtime_arr.size()){
-     QWidget* popup = new QWidget();
-     popup->setAttribute(Qt::WA_DeleteOnClose);
-     QString lab_text = QString("");
-     QLabel* lab = new QLabel("ERROR\nMore behaviors given than durations!!");
-     QPushButton* but = new QPushButton("Close");
+    printf("sequence size = %d, switchtime size = %d\n");
 
-     connect(but, SIGNAL(released()), popup, SLOT(close()));
+    QString lab_text = QString("ERROR\nMore behaviors given than durations!!");
+    this->generateErrorPopup(lab_text);
 
-     QVBoxLayout* layout = new QVBoxLayout();
-     layout->addWidget(lab);
-     layout->addWidget(but);
-
-     popup->setLayout(layout);
-     popup->show();
-     return;
+    return;
 
    }
    
    if(is_aided == 0 && sequence_arr.size() != switchtime_arr.size()){
-     QWidget* popup = new QWidget();
-     popup->setAttribute(Qt::WA_DeleteOnClose);
-     QString lab_text = QString("");
-     QLabel* lab = new QLabel("ERROR\nNumber of Behaviors must match number of durations!!");
-     QPushButton* but = new QPushButton("Close");
+    QString lab_text = QString("ERROR\nNumber of Behaviors must match number of durations!!");
+    this->generateErrorPopup(lab_text);
+    return;
 
-     connect(but, SIGNAL(released()), popup, SLOT(close()));
+   }
 
-     QVBoxLayout* layout = new QVBoxLayout();
-     layout->addWidget(lab);
-     layout->addWidget(but);
 
-     popup->setLayout(layout);
-     popup->show();
+   if(switchtime_arr.size() == 0)
+   {
+     QString lab_text = QString("ERROR\nNo Switchtimes given!");
+     this->generateErrorPopup(lab_text);
      return;
-
    }
 
 
@@ -365,6 +322,25 @@ void MyViz::submit()
 }
 
 
+void MyViz::generateErrorPopup(QString str)
+{
+  QWidget* popup = new QWidget();
+  popup->setAttribute(Qt::WA_DeleteOnClose);
+  QLabel* lab = new QLabel(str);
+  QPushButton* but = new QPushButton("Close");
+
+  QObject::connect(but, SIGNAL(released()), popup, SLOT(close()));
+
+  QVBoxLayout* layout = new QVBoxLayout();
+  layout->addWidget(lab);
+  layout->addWidget(but);
+
+  popup->setLayout(layout);
+  popup->show();
+  return;
+}
+
+
 void MyViz::generate()
 {  
    this->submit(); //Run this in case sequence changed after user pressed submit
@@ -372,82 +348,17 @@ void MyViz::generate()
    //1. Collecting all the data
    std::vector<int> sequence_arr;
    std::vector<float> switchtime_arr;
-   QString sequence;
-   QString switchtime;
    QString iteration;
    int iter;
 
-   if(this->is_aided == 0)
-   {
-     sequence = stw->getSequence();
-     this->curr_sequence = sequence;
- 	   sequence_arr = this->sequenceInputConvert(sequence);
-     //3. if invalid
-  	 if(sequence_arr.size() != 0 && sequence_arr[0] == -1){
-	     //Generate a popup message and return without generating
-       QWidget* popup = new QWidget();
-       popup->setAttribute(Qt::WA_DeleteOnClose);
-       QLabel* lab = new QLabel("Sequence you generated is invalid!!\nPlease try again!");
-       QPushButton* but = new QPushButton("Close");
-
-       connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-       QVBoxLayout* layout = new QVBoxLayout();
-       layout->addWidget(lab);
-       layout->addWidget(but);
-
-       popup->setLayout(layout);
-       popup->show();
-		   return;
-     }
-   }
-
-   switchtime = stw->getSwitchTime();
+   
+ 	 sequence_arr = this->sequenceInputConvert(this->curr_sequence);
+   
    iteration = cw->getInfo(); 	 
-   this->curr_switchtime = switchtime;
-
+     
    //2. Running the input checker
-   switchtime_arr = this->switchtimeInputConvert(switchtime);
+   switchtime_arr = this->switchtimeInputConvert(this->curr_switchtime);
    iter = this->iterationConvert(iteration);
-
-   if(switchtime_arr[0] == -1){
-     //Generate a popup message and return without generating
-     QWidget* popup = new QWidget();
-     popup->setAttribute(Qt::WA_DeleteOnClose);
-     QLabel* lab = new QLabel("Switch time you generated is invalid!!\nPlease try again!");
-     QPushButton* but = new QPushButton("Close");
-
-     connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-     QVBoxLayout* layout = new QVBoxLayout();
-     layout->addWidget(lab);
-     layout->addWidget(but);
-
-     popup->setLayout(layout);
-     popup->show();
-		 return;
-   }
-
-   if(iter == -1){
-     QWidget* popup = new QWidget();
-     popup->setAttribute(Qt::WA_DeleteOnClose);
-     QLabel* lab = new QLabel("Iteration is invalid!!\nPlease try again!");
-     QPushButton* but = new QPushButton("Close");
-
-     connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-     QVBoxLayout* layout = new QVBoxLayout();
-     layout->addWidget(lab);
-     layout->addWidget(but);
-
-     popup->setLayout(layout);
-     popup->show();
-		 return;
-   }
-    
-
-
-  
    //4. if valid, create and publish r2c
    ROS_INFO("Inside function generate()...sending R2C message\n");
    custom_messages::R2C r2c;
@@ -693,7 +604,7 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
     std::vector<int> sequence_arr;
     std::vector<int> switchtime_timehorizon;
     std::vector<QString> color_timehorizon;
-
+    std::vector<QString> sequence_arr_string;
 		QString curr_sequence_short = QString("");
 
 		for(int i = 0; i < sequence_string_array.size(); i++)
@@ -701,6 +612,8 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
       int index = std::find(behavior_array.begin(), behavior_array.end(), sequence_string_array[i]) - behavior_array.begin();
       curr_sequence_short += QString::fromStdString(behavior_array_short[index]);
       if(i != sequence_string_array.size() - 1) curr_sequence_short += ",";
+
+      sequence_arr_string.push_back(QString::fromStdString(sequence_string_array[i]));
     }
 
 
@@ -721,7 +634,11 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
    
 
     thw->setValues(switchtime_timehorizon, color_timehorizon);
-  }
+  
+    //We must fill up the table with new sequences!!
+    stw->setSequence(sequence_arr_string);
+  	  
+   }
 
   return;
 

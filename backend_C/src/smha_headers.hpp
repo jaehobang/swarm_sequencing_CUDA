@@ -2,8 +2,8 @@
 
 const int DIR = 7; //directions I can take {rendezvous, flocking, north, south, west, east, no_move}
 const int ARRAY_SIZE = 1024;
-const int ROBOT_MAX = 16;
-const int OBS_MAX = 5;
+const int ROBOT_MAX = 10;
+const int OBS_MAX = 10;
 const int SEQ_MAX = 10;
 const int QUEUE_SIZE = 2;
 
@@ -40,7 +40,7 @@ typedef struct PARAM
                                    //newly added
   float H2; //w2
   int q_count; //number of queues
-  float time_array[SEQ_MAX - 1];
+  float time_array[SEQ_MAX];
   int time_array_count;
   int sequence_array[SEQ_MAX];
   int sequence_array_count;

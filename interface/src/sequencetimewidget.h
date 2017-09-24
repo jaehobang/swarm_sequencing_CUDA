@@ -17,7 +17,7 @@ public:
     QString getSequence();
     QString getSwitchTime();
     void reset();
-
+		void setSequence(std::vector<QString> sequence);
 
 private Q_SLOTS:
     void addButtonClicked();

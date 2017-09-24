@@ -245,4 +245,17 @@ void SequenceTimeWidget::reset()
     }
 }
 
+void SequenceTimeWidget::setSequence(std::vector<QString> sequence)
+{
+  sequence_array.clear();
+  for(int i = 0; i < sequence.size(); i++)
+  {
+    sequence_list->item(i, SEQ_COL)->setText(sequence[i]);
+    sequence_array.push_back(sequence[i]);
+  }
+  return;
+}
+
+
+
 

@@ -67,7 +67,6 @@ float d_wrapToPi(float input)
 __device__
 void d_robot_model_i(node* current, int i, float u_v, float u_w, float dt)
 {
-	int N = current->N;
 	float max_linear_velocity = 4; //Doubled max linear, angular velocity by 2
 	float max_angular_velocity = CUDART_PI_F / 4;
 	u_v = fmaxf(-max_linear_velocity, fminf(max_linear_velocity, u_v));
@@ -90,7 +89,7 @@ void d_antirendezvous(node* future, node *current, int i, float dt)
 	float v[2], dv[2], b[2];
 	float w, n;
 	float position_i[2], position_j[2], d[2];
-	float heading_i, heading_j;
+	float heading_i;
 	float dtheta;
 	float u_v, u_w;
 	position_i[0] = current->robot_pos[i][0];
@@ -105,7 +104,7 @@ void d_antirendezvous(node* future, node *current, int i, float dt)
 		if (i == j) continue;
 		position_j[0] = current->robot_pos[j][0];
 		position_j[1] = current->robot_pos[j][1];
-		heading_j = current->robot_pos[j][2];
+		//heading_j = current->robot_pos[j][2];
 		d[0] = position_j[0] - position_i[0];
 		d[1] = position_j[1] - position_i[1];
 		float norm_d = sqrtf(powf(d[0], 2) + powf(d[1], 2));
@@ -150,7 +149,7 @@ void d_rendezvous(node* future, node *current, int i, float dt)
 	float v[2], dv[2], b[2];
 	float w, n;
 	float position_i[2], position_j[2], d[2];
-	float heading_i, heading_j;
+	float heading_i;
 	float dtheta;
 	float u_v, u_w;
 	position_i[0] = current->robot_pos[i][0];
@@ -165,7 +164,7 @@ void d_rendezvous(node* future, node *current, int i, float dt)
 		if (i == j) continue;
 		position_j[0] = current->robot_pos[j][0];
 		position_j[1] = current->robot_pos[j][1];
-		heading_j = current->robot_pos[j][2];
+		//heading_j = current->robot_pos[j][2];
 		d[0] = position_j[0] - position_i[0];
 		d[1] = position_j[1] - position_i[1];
 		float norm_d = sqrtf(powf(d[0], 2) + powf(d[1], 2));
@@ -435,10 +434,7 @@ float d_calculate_G(node d_expanded, node d_open, PARAM* d_param, int mode)
 
 
 	float final_G = d_open.G;
-	float poses_delta_summed[2];
-	poses_delta_summed[0] = 0;
-	poses_delta_summed[1] = 0;
-	float N = d_open.N;
+  float N = d_open.N;
 	for (int i = 0; i < N; i++)
 	{
 		final_G += sqrtf(powf(d_expanded.robot_pos[i][0] - d_open.robot_pos[i][0], 2) +
@@ -456,7 +452,6 @@ float d_calculate_H(node d_expanded, PARAM* d_param, int mode)
 {
 	float priority = 0;
 	float priority_i;
-	int i;
 	float target_radius = d_param->target_radius;
 	float target_center[2];
 	target_center[0] = d_param->target_center[0];
@@ -489,6 +484,7 @@ float d_calculate_H(node d_expanded, PARAM* d_param, int mode)
 		}
 		return priority + d_param->N *  powf(3, -(dist_to_ob - 5));
 	}
+  return -1;
 
 }
 
@@ -515,9 +511,9 @@ void k_expandStates(node* d_expanded, node* d_open, PARAM* d_param, int dir, int
 
 	/* Expand the nodes */
 	float dt = d_param->dt;
-	float ti = d_param->ti;
+	//float ti = d_param->ti;
 	float dT = d_param->dT;
-	float tf = d_param->tf;
+	//float tf = d_param->tf;
  
   if(d_open[node_index].sequence_numel >= d_param->time_array_count) {
     d_expanded[index].isEmpty = 1;
@@ -653,7 +649,7 @@ float h_calculate_H(node d_expanded, PARAM* d_param, int mode)
 {
 	float priority = 0;
 	float priority_i;
-	int i;
+	//int i;
 	float target_radius = d_param->target_radius;
 	float target_center[2];
 	target_center[0] = d_param->target_center[0];
@@ -691,6 +687,7 @@ float h_calculate_H(node d_expanded, PARAM* d_param, int mode)
 
 		return priority + dist_to_ob;
 	}
+  return -1;
 
 }
 
@@ -857,7 +854,7 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 	float dt = d_param->dt;
 	float ti = d_param->ti;
 	float dT = d_param->dT;
-	float tf = d_param->tf;
+	//float tf = d_param->tf;
 	int steps = (int)dT / dt;
 	float dstart = ti;
 	float dend = 0;
@@ -893,8 +890,7 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 	}
 
   d_result->reached_destination = d_target_reached(*d_result, d_param);
-
-
+  d_result->F = d_result->G + d_param->H * d_calculate_H(*d_result, d_param, 0);
 
 	return;
 }
@@ -912,7 +908,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
 	printf("\n");
 
 	printf("checking result node also.... sequence_numel is %d\n", result_node->sequence_numel);
-	for(int i = 0; i < param->time_array_count; i++)
+	for(int i = 0; i < param->sequence_array_count; i++)
 	{
 		printf("%s ", behavior_array[result_node->behaviorIndices[i]]);
 	}
@@ -930,6 +926,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
 
 
 	int seq_n = result_node->sequence_numel;
+  printf("param->tf = %f, param->dt = %f\n", param->tf, param->dt);
 	int h_result_size = param->tf / param->dt + 1;
 	printf("h_result_size is ... %d\n", h_result_size);
 	POS* h_poses = new POS[h_result_size];
@@ -938,8 +935,8 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
 
 	
 	/* Allocate space on device for sequence_end_indices array, cost_of_path, is_valid_path */
-	float cost_of_path = 0;
-	int is_valid_path = 0;
+	//float cost_of_path = 0;
+	//int is_valid_path = 0;
 	int* h_sequence_end_indices = new int[param->sequence_array_count];
 	int* d_sequence_end_indices;
 	gpuErrchk(cudaMalloc(&d_sequence_end_indices, sizeof(int) * (param->sequence_array_count)));
@@ -955,21 +952,23 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
 	cudaMemcpy(h_sequence_end_indices, d_sequence_end_indices, 
 		   sizeof(int) * (param->sequence_array_count), cudaMemcpyDeviceToHost);
 
-	cudaMemcpy(result_node, d_result, sizeof(node), cudaMemcpyDeviceToHost);
+
+  node* h_result = new node[1];
+	cudaMemcpy(h_result, d_result, sizeof(node), cudaMemcpyDeviceToHost);
 
 	
 	printf("returned from kernel...\n");
 	printf("printing all necessary information to check that kernel returned correctly\n");
-	printf("Cost of path(G) = %f\n", result_node->G);
-  printf("h_result->isEmpty %d\n", result_node->isEmpty);
-	if(result_node->isEmpty == 0) printf("PATH IS VALID\n");
+	printf("Cost of path(G) = %f\n", h_result->G);
+  printf("h_result->isEmpty %d\n", h_result->isEmpty);
+	if(h_result->isEmpty == 0) printf("PATH IS VALID\n");
  	else printf("PATH IS INVALID\n");
 
 	/* Copy all the necessary information back to return struct */
-  return_1->cost_of_path = result_node->G;
-	if(result_node->isEmpty) return_1->is_valid_path = 0;
+  return_1->cost_of_path = h_result->G;
+	if(h_result->isEmpty) return_1->is_valid_path = 0;
 	else return_1->is_valid_path = 1;
-	return_1->is_complete = result_node->reached_destination;
+	return_1->is_complete = h_result->reached_destination;
 
   printf("updating robot_positions...\n");
   printf("h_result_size is %d\n", h_result_size);
@@ -984,7 +983,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
 	for(int i = 0; i < seq_n; i++)
 	{
 		return_1->sequence_end_indices.push_back(h_sequence_end_indices[i]);
-		return_1->sequence_string_array.push_back(behavior_array_display[result_node->behaviorIndices[i]]);
+		return_1->sequence_string_array.push_back(behavior_array_display[h_result->behaviorIndices[i]]);
 	}
 
 	printf("making sure that return struct has necessary info...\n");
@@ -995,6 +994,9 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
     printf("return_1->sequence_end_indices[%d] = %d\n", 
             i, return_1->sequence_end_indices[i]);
   }
+
+  memcpy(result_node, h_result, sizeof(node));
+  delete h_result;
 	return;
 }
 
@@ -1177,8 +1179,11 @@ node SMHAstar(PARAM* param, node h_start)
 		if (best_node_p->isEmpty == 0 && best_node_p->G < result.G) memcpy(&result, best_node_p, sizeof(node));
 	}
 
+  if (result.isEmpty == 1 && best_node_p->isEmpty == 0) {
+    memcpy(&result, best_node_p, sizeof(node));
+  }
 
-	if (result.isEmpty == 1) {
+	if (result.isEmpty == 1 && best_node_p->isEmpty == 1) {
 		printf("no route found, returning the best attempt\n");
 		memcpy(&result, &best_attempt, sizeof(node));
 	}
@@ -1215,9 +1220,9 @@ void k_SAVE(POS* d_poses, node* d_result, node* d_start, PARAM* d_param)
 
 	/* Expand the nodes */
 	float dt = d_param->dt;
-	float ti = d_param->ti;
+	//float ti = d_param->ti;
 	float dT = d_param->dT;
-	float tf = d_param->tf;
+	//float tf = d_param->tf;
 	int steps = (int)dT / dt;
 
 	int sequence_count = d_result->sequence_numel;
@@ -1330,7 +1335,7 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 	h_start.isEmpty = 0;
 	h_start.N = param->N;
 	h_start.sequence_numel = param->sequence_array_count;
-  
+  h_start.behaviorIdx = 0;
   for(int i = 0; i < h_start.sequence_numel; i++)
   {
     h_start.behaviorIndices[i] = param->sequence_array[i];
@@ -1345,29 +1350,113 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 	h_start.G = 0;
 	h_start.reached_destination = 0;
 	
+
+  RETURN result_tmp;
   if(h_start.sequence_numel != 0){
 
-    RETURN result_tmp;
-    noSMHAstar(param, &result_tmp, &h_start);
+    noSMHAstar(param, result_1, &h_start);
+    if(param->time_array_count == param->sequence_array_count) return;
   }
+////////////////////////////////////////////////////////////////////
+
+  //Need to check that this works okay...
+  printf("Printing h_start information insdie smha_star_wrapper\n");
+  printf("isEmpty = %d, N = %d, F = %f, G = %f, behaviorIdx = %llu, reached_destination = %d, sequence_numel = %d\n", h_start.isEmpty,
+          h_start.N, h_start.F, h_start.G, h_start.behaviorIdx,
+          h_start.reached_destination, h_start.sequence_numel);
+  for(int i = 0; i < h_start.sequence_numel; i++)
+  {
+    printf("%s ", behavior_array[h_start.behaviorIndices[i]]);
+  }
+  printf("\n");
+  for(int i = 0; i < h_start.N; i++)
+  {
+    printf("robot[%d] x,y,r = %f %f %f\n", i, h_start.robot_pos[i][0],
+			h_start.robot_pos[i][1], h_start.robot_pos[i][2]);
+  }
+
+  if(h_start.isEmpty == 1)
+  { /*
+    printf("H_start is empty!!!! making sure result_tmp has all the correct information....\n");
+    for(int i = 0; i < result_tmp.sequence_end_indices.size(); i++)
+    {
+      printf("sequence[%d] end index is %d\n", i, result_tmp.sequence_end_indices[i]);
+    }
+
+    
+    memcpy(result_1, &result_tmp, sizeof(RETURN));
+		for(int i = 0; i < result_1->sequence_end_indices.size(); i++)
+    {
+      printf("sequence[%d] end index is %d\n", i, result_1->sequence_end_indices[i]);
+    }
+    */
+    printf("RETURNING EARLY!!!\n");
+    return;
+  }  
+  
 
 	node result_node = SMHAstar(param, h_start); //note this result_node might be simply the closest attempt to the goal
 
-	//Need to reset the result_node robot position to initial 
-	std::copy(&param->robot_pos[0][0], &param->robot_pos[0][0] + param->N * 3, 
-		&result_node.robot_pos[0][0]);
+  printf("\n\n\n\n\n\n\n");
+  printf("After returning from SMHAstar...\n"); 
+  printf("isEmpty = %d, N = %d, F = %f, G = %f, behaviorIdx = %llu, reached_destination = %d, sequence_numel = %d\n", result_node.isEmpty,
+          result_node.N, result_node.F, result_node.G, result_node.behaviorIdx,
+          result_node.reached_destination, result_node.sequence_numel);
+  for(int i = 0; i < result_node.sequence_numel; i++)
+  {
+    printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
+  }
+  printf("\n");
+  for(int i = 0; i < result_node.N; i++)
+  {
+    printf("robot[%d] x,y,r = %f %f %f\n", i, result_node.robot_pos[i][0],
+			result_node.robot_pos[i][1], result_node.robot_pos[i][2]);
+  }
+//////////////////////////////////////////////////////////////
+
+	node h_final; //starting node
+
+	h_final.isEmpty = 0;
+	h_final.N = param->N;
+	h_final.sequence_numel = result_node.sequence_numel;
+  h_start.behaviorIdx = 0;
+  for(int i = 0; i < h_final.sequence_numel; i++)
+  {
+    h_final.behaviorIndices[i] = result_node.behaviorIndices[i];
+  }
+
+
+	std::copy(&param->robot_pos[0][0], &param->robot_pos[0][0] + param->N * 3, &h_final.robot_pos[0][0]);
+
+	printf("Done copying robot_positions param->h_start\n");
+	h_final.F = param->H * h_calculate_H1(h_final.robot_pos, param, h_final.N);
+	h_final.G = 0;
+	h_final.reached_destination = 0;
+	
 
 	printf("checking the sequence before entering noSMHAstar...\n");
-	printf("result_node sequence count is %d\n", result_node.sequence_numel);
-	for(int i = 0; i < result_node.sequence_numel; i++)
+	printf("h_final sequence count is %d\n", h_final.sequence_numel);
+	for(int i = 0; i < h_final.sequence_numel; i++)
 	{
-		printf("%s ", behavior_array[result_node.behaviorIndices[i]]);
+		printf("%s ", behavior_array_display[h_final.behaviorIndices[i]].c_str());
 
 	}
 	printf("\n");
 
-	noSMHAstar(param, result_1, &result_node);
+  param->sequence_array_count = h_final.sequence_numel;
+  for(int i = 0; i < h_final.sequence_numel; i++)
+  {
+    param->sequence_array[i] = h_final.behaviorIndices[i];
+  }
+
+  result_1->robot_positions.clear();
+  result_1->sequence_end_indices.clear();
+  result_1->sequence_string_array.clear();
+
+	noSMHAstar(param, result_1, &h_final);
 	return;
+
+
 
 }
 
@@ -1382,49 +1471,6 @@ void SMHAstar_wrapper(PARAM* param, RETURN* result_1)
 
 void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vector<int>sequence_array, std::vector<uint8_t> fix_array)
 { 
-  /*
-	param->N = 16;
-	param->M = 3; //2
-	param->H = 1;
-	param->mapsize = 20;
-	param->ti = 0;
-	param->dt = 0.1;
-	param->tf = 50;
-	param->dT = 5;
-	param->target_center[0] = 10;
-	param->target_center[1] = 10;
-	param->target_radius = 7;
-	param->robot_radius = 0.5;
-	param->q_count = 2;
-	param->H2 = 1;
-
-	/ Initialize robot_pos /
-	float bottom_left_x = -param->mapsize + 1;
-	float bottom_left_y = -param->mapsize + 1;
-	float width = (param->target_radius) * 2;
-	float height = (param->target_radius) * 2;
-
-	int i;
-	for (i = 0; i < param->N; i++)
-	{
-		param->robot_pos[i][0] = bottom_left_x + width * ((float)(rand() % 1000)) / 1000;
-		param->robot_pos[i][1] = bottom_left_y + height * ((float)(rand() % 1000)) / 1000;
-		param->robot_pos[i][2] = remainder(((float)(rand() % 1000)) / 1000, 2.0*M_PI);
-	}
-
-	/ Initialize obstacle_pos /
-	float obstacle_min_radius = 2;
-	float obstacle_max_radius = 5;
-
-	for (i = 0; i < param->M; i++)
-	{
-		param->obstacle_pos[i][0] = fmod(((float)(rand() % 1000)) / 10, (2 * param->mapsize)) - param->mapsize;
-		param->obstacle_pos[i][1] = fmod(((float)(rand() % 1000)) / 10, (2 * param->mapsize)) - param->mapsize;
-		param->obstacle_pos[i][2] = fmod(((float)(rand() % 1000)) / 10, obstacle_max_radius);
-		if (param->obstacle_pos[i][2] < obstacle_min_radius) param->obstacle_pos[i][2] += obstacle_min_radius;
-	}
-  */
-  
 	param->time_array_count = time_array.size();
   param->sequence_array_count = sequence_array.size();
   printf("Inside initialize_params....\n");
@@ -1498,31 +1544,6 @@ void fix_robot_positions(PARAM* param)
 	param->robot_pos[9][0] = -14;
 	param->robot_pos[9][1] = -11;
 	param->robot_pos[9][2] = 0;
-
-	param->robot_pos[10][0] = -18;
-	param->robot_pos[10][1] = -10;
-	param->robot_pos[10][2] = 0;
-
-	param->robot_pos[11][0] = -17;
-	param->robot_pos[11][1] = -10;
-	param->robot_pos[11][2] = 0;
-
-	param->robot_pos[12][0] = -16;
-	param->robot_pos[12][1] = -10;
-	param->robot_pos[12][2] = 0;
-
-	param->robot_pos[13][0] = -15;
-	param->robot_pos[13][1] = -10;
-	param->robot_pos[13][2] = 0;
-
-	param->robot_pos[14][0] = -14;
-	param->robot_pos[14][1] = -10;
-	param->robot_pos[14][2] = 0;
-
-	param->robot_pos[15][0] = -18;
-	param->robot_pos[15][1] = -9;
-	param->robot_pos[15][2] = 0;
-
 }
 
 void fix_obstacle_positions(PARAM* param)
