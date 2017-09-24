@@ -5,40 +5,51 @@
 
 FullPanel::FullPanel( QWidget* parent) : QWidget(parent)
 {
-  render_panel_ = new rviz::RenderPanel();
-  
-  QVBoxLayout* col = new QVBoxLayout();
-  col->addWidget(render_panel_);
-  this->setLayout(col);
-
-  manager_ = new rviz::VisualizationManager(render_panel_);
-  render_panel_->initialize(manager_->getSceneManager(), manager_);
-  manager_->initialize();
-  manager_->startUpdate();
-
-  trajectory_ = manager_->createDisplay( "rviz/MarkerArray", "Marker Array", true);
-  ROS_ASSERT (trajectory_ != NULL);
-
-  trajectory_->subProp("Topic")->setValue("visualization_marker_array");
 }
 
 FullPanel::~FullPanel()
 {
-  delete manager_;
 }
 
 void FullPanel::setHandle(ros::NodeHandle n)
 {
   this->n = n;
+  marker_arr_pub = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
+  marker_pub = n.advertise<visualization_msgs::Marker>("foo", 1);
+
+}
+
+
+void FullPanel::deleteMessage()
+{
+  printf("Inside deleteMEssages!!!\n");
+  ros::Rate r(1);
+  printf("mk_arrs.size() = %d\n", mk_arrs.size());
+
+  visualization_msgs::MarkerArray mk_arr;
+
+  for(int i = 0; i < mk_arrs.size(); i++){
+    mk_arr = mk_arrs[i];
+    for(int robot_i = 0;  robot_i < 10; robot_i++)
+    {
+      mk_arr.markers[robot_i].action = visualization_msgs::Marker::DELETEALL;
+		}
+    marker_arr_pub.publish(mk_arr);
+
+    ros::spinOnce();
+    r.sleep();
+  }
+  mk_arrs.clear();
+  printf("end of delete message\n");
+  return;
 }
 
 
 void FullPanel::publishMessage()
 {
   ros::Rate r(1);
-  ros::Publisher marker_arr_pub = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
-
-  // Set our initial shape type to be a cube
+  printf("Inside publish message\n");
+    // Set our initial shape type to be a cube
   uint32_t type = visualization_msgs::Marker::LINE_STRIP;
 
   std::vector<int> ids;
@@ -125,9 +136,53 @@ void FullPanel::publishMessage()
       marker_arr.markers.push_back(marker);
 		}
     marker_arr_pub.publish(marker_arr);
+    mk_arrs.push_back(marker_arr);
 
-
+    ros::spinOnce();
     r.sleep();
+  }
+
+  
+
+
+  return;
+}
+
+
+void FullPanel::tmpPublish()
+{
+  ros::Rate i(1);
+  visualization_msgs::Marker mk;
+  int count = 0;
+  while(ros::ok()){
+  if(count == 5) break;
+  printf("fml\n");
+  mk.header.stamp = ros::Time::now();
+  mk.header.frame_id = "map";
+  mk.ns = "hello";
+  mk.id = 0;
+  mk.type = 1;
+  mk.action = 0;
+  mk.pose.position.x = 0;
+  mk.pose.position.y = 0;
+  mk.pose.position.z = 0;
+  mk.pose.orientation.x = 0;
+  mk.pose.orientation.y = 0;
+  mk.pose.orientation.z = 0;
+  mk.pose.orientation.w = 1;
+  mk.scale.x = 10;
+  mk.scale.y = 10;
+  mk.scale.z = 10;
+  mk.color.r = (float)128 / 255;
+  mk.color.g = (float) 128 / 255;
+  mk.color.b = (float) 128 / 255;
+  mk.color.a = 1;
+  mk.lifetime = ros::Duration();
+
+  marker_pub.publish(mk);
+  ros::spinOnce();
+  count++;
+  i.sleep(); 
   }
   return;
 }

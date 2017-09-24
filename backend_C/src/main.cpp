@@ -21,6 +21,7 @@ ros::Publisher cr1_publisher;
 PARAM* parameter;
 int N = 10;
 int MAP_NUM = 0;
+std::vector<int> map_sequence;
 
 int errorCheckR2C(const custom_messages::R2C::ConstPtr& msg)
 {
@@ -91,13 +92,35 @@ void getRGB(int* r, int* g, int* b, string behavior)
 	return;
 }
 
+void deleteMarkerArray()
+{
+  visualization_msgs::MarkerArray mk_arr;
+  visualization_msgs::Marker mk;
+  
+  mk.header.frame_id = "map";
+  mk.header.stamp = ros::Time::now();
+  mk.action = visualization_msgs::Marker::DELETEALL;
+  mk.ns = "delete";
+  mk.id = 0;
+  mk_arr.markers.push_back(mk);
+  cr_publisher.publish(mk_arr);
+
+
+}
+
 
 void publishMarkerArray()
 {
+  //Delete all trajectories on the map first
+
+  deleteMarkerArray();
+
 	ros::Rate i_Rate(0.5);
   visualization_msgs::MarkerArray mk_arr;
   visualization_msgs::Marker mk;
   geometry_msgs::Point p;
+
+  i_Rate.sleep();
 
 	int sub_i = 0;
 	int behav_i = 0;
@@ -112,7 +135,9 @@ void publishMarkerArray()
   ROS_INFO("sequence_end_indices.size() is %d", return_struct.sequence_end_indices.size());
 
   /* We can have maximum of 10 marker array messages 
-     Each marker array message will have 10 markers 
+     Each marker array message will ha	r	param->fix_count = fix_count;
+  param->fix_count = fix_count;
+  ve 10 markers 
      Delete all */
   /*
   ros::Rate tmp_rate(10);
@@ -259,6 +284,29 @@ void processParam(std::vector<std::string> tokens, PARAM* parameter)
 }
 
 
+void generateRandomMapSequence()
+{
+  //training maps
+  map_sequence.push_back(0);
+  map_sequence.push_back(1);
+  map_sequence.push_back(2);
+  map_sequence.push_back(3);
+  map_sequence.push_back(4);
+  
+  //test maps
+  std::vector<int> basket = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+  std::random_shuffle( basket.begin(), basket.end() );
+
+  for(int i = 0; i < basket.size(); i++)
+  {
+    printf(" %d", basket[i]);
+    map_sequence.push_back(basket[i]);
+  }
+  printf("\n");
+  return;
+
+}
+
 void parseMap()
 {
   ROS_INFO("BEFORE parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
@@ -274,7 +322,7 @@ void parseMap()
 	parameter->H2 = 1;
 	
   string filename = "/home/jaeho-linux/hri2017/src/backend_C/maps"; //This needs to be modified for each computer.....
-	filename += "/map" + std::to_string(MAP_NUM) + ".txt";
+	filename += "/map" + std::to_string(map_sequence[MAP_NUM]) + ".txt";
 
 	ifstream f(filename.c_str());
   if(f.good() == 0) {
@@ -418,6 +466,7 @@ void updateMap()
 
 	//2.0 eraseall
   
+  deleteMarkerArray();
 	mk.ns = "deleteall";
   mk.id = 0;
   mk.action = visualization_msgs::Marker::DELETEALL;
@@ -631,8 +680,10 @@ int main(int argc, char** argv)
   cd_publisher = n.advertise<custom_messages::C2D>("/hsi/C2D", 1000);
   cr_publisher = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
 	
-	cr1_publisher = n.advertise<visualization_msgs::Marker>("visualization_marker", 1);
-	parameter = new PARAM[1];
+	cr1_publisher = n.advertise<visualization_msgs::Marker>("map_related", 1);
+	generateRandomMapSequence();
+
+  parameter = new PARAM[1];
 	updateMap();
 
   ros::Subscriber c_subscriber = n.subscribe<custom_messages::R2C>("/hsi/R2C", 1000, callBack);

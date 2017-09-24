@@ -26,7 +26,8 @@ public:
   virtual ~FullPanel();
   void setHandle(ros::NodeHandle n);
   void publishMessage();
-
+  void deleteMessage();
+  void tmpPublish();
 
 private:
   rviz::VisualizationManager* manager_;
@@ -34,6 +35,9 @@ private:
   rviz::Display* trajectory_;
   
   ros::NodeHandle n;
+  ros::Publisher marker_arr_pub;
+  ros::Publisher marker_pub;
+  std::vector<visualization_msgs::MarkerArray> mk_arrs;
 
 };
 

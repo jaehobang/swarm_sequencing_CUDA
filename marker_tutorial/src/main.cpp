@@ -2,6 +2,7 @@
 #include <QApplication>
 #include "ros/ros.h"
 
+
 int main(int argc, char **argv)
 {
 
@@ -18,8 +19,14 @@ int main(int argc, char **argv)
   FullPanel w;
   w.setHandle(n);
   w.show();
-  w.publishMessage();
-
+  w.tmpPublish();
+  
+  for(int i = 0; i < 3; i++)
+  {
+    w.publishMessage();
+    w.deleteMessage();
+  }
+  
   return a.exec();
 
 

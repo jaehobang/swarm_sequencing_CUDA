@@ -10,7 +10,7 @@ Displays:
     Value: true
   - Class: rviz/Marker
     Enabled: true
-    Marker Topic: visualization_marker
+    Marker Topic: map_related
     Name: Marker
     Namespaces:
       {}
