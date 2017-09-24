@@ -253,7 +253,7 @@ void MyViz::submit()
    
      QString lab_text;
      if(switchtime == "-1") lab_text = QString("ERROR!\nInput is not a int or floating point number.");
-     else lab_text = QString("ERROR!\nTotal time input exceeded maximum simulation time (50 seconds)!");
+     else lab_text = QString("ERROR!\nTotal time input exceeded maximum simulation time (60 seconds)!");
      this->generateErrorPopup(lab_text);
      return;
    }   
@@ -396,11 +396,10 @@ void MyViz::generate()
    custom_messages::R2D r2d;
    r2d.stamp = ros::Time::now();
    r2d.event_type = EVENT_BUTTON;
-   r2d.button_name = "Run";
-   r2d.time_array = switchtime_arr;
-   r2d.sequence_string_array = b_sequences;
-   r2d.name = this->name;
-   r2d.is_aided = this->is_aided;
+   r2d.description = "Button Run Clicked";
+   r2d.switchtime_string = this->curr_switchtime.toStdString();
+   r2d.sequence_string = this->curr_sequence.toStdString();
+   r2d.id = this->name;
    id_publisher.publish(r2d);
    ros::spinOnce();
 

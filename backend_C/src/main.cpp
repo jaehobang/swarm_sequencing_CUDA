@@ -1,7 +1,6 @@
 #include "ros/ros.h"
 #include "custom_messages/C2R.h"
 #include "custom_messages/R2C.h"
-#include "custom_messages/C2D.h"
 
 #include "visualization_msgs/MarkerArray.h"
 #include "smha_headers.hpp"
@@ -15,7 +14,6 @@ RETURN testmain(PARAM* parametereter, int is_aided, std::vector<float> time_arra
 //int testmain();
 RETURN return_struct; 
 ros::Publisher ci_publisher;
-ros::Publisher cd_publisher;
 ros::Publisher cr_publisher;
 ros::Publisher cr1_publisher;
 PARAM* parameter;
@@ -50,7 +48,8 @@ void publishC2R()
   c2r.is_valid_path = return_struct.is_valid_path;
   c2r.is_complete = return_struct.is_complete;
   c2r.sequence_string_array = return_struct.sequence_string_array;
-  
+  c2r.eot = 0;  
+  c2r.map_number = map_sequence[MAP_NUM];
   ci_publisher.publish(c2r);
 	ros::spinOnce();
  
@@ -239,20 +238,6 @@ void publishMarkerArray()
 	}		
 }
 
-
-void publishC2D()
-{
-	custom_messages::C2D c2d;
-	c2d.stamp = ros::Time::now();
-	c2d.cost_of_path = return_struct.cost_of_path;
-	c2d.is_valid_path = return_struct.is_valid_path;
-	c2d.is_complete = return_struct.is_complete;
-
-	cd_publisher.publish(c2d);
-	ros::spinOnce();
-
-}
-
 void processParam(std::vector<std::string> tokens, PARAM* parameter)
 {
   // Assign parametereters according to the parametereter name
@@ -295,6 +280,7 @@ void generateRandomMapSequence()
   
   //test maps
   std::vector<int> basket = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+  std::srand(std::time(0));
   std::random_shuffle( basket.begin(), basket.end() );
 
   for(int i = 0; i < basket.size(); i++)
@@ -315,7 +301,7 @@ void parseMap()
   parameter->mapsize = 40;
 	parameter->ti = 0;
 	parameter->dt = 0.1;
-	parameter->tf = 50;
+	parameter->tf = 60;
 	parameter->dT = 5;
 	parameter->robot_radius = 0.5;
 	parameter->q_count = 2;
@@ -329,6 +315,8 @@ void parseMap()
 		ROS_INFO("File does not exist!!!");
 		return;
 	}
+
+  printf("OPENING MAP %d!!\n", map_sequence[MAP_NUM]);
 
 	fstream file(filename);
   string str;
@@ -485,6 +473,7 @@ void updateMap()
   mk.id = 0;
   mk.type = visualization_msgs::Marker::CYLINDER;
   mk.action = visualization_msgs::Marker::ADD;
+  printf("Number of obstacles!!!! is %d\n", parameter->M);
   for(int i = 0; i < parameter->M; i++)
 	{
     mk.id++;
@@ -597,6 +586,7 @@ void handleEot(const custom_messages::R2C::ConstPtr& msg)
   c2r.is_complete = return_struct.is_complete;
   c2r.sequence_string_array = return_struct.sequence_string_array;
   c2r.eot = 1; 
+  c2r.map_number = map_sequence[MAP_NUM];
   ci_publisher.publish(c2r);
 	ros::spinOnce();
  
@@ -660,12 +650,6 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
   ROS_INFO("AFter publishMarkerArray, ->N = %d, ->M = %d", parameter->N, parameter->M);
  
   //6. Publish a c2d message
-  publishC2D();
-  ROS_INFO("Finished publishing C2D");
-  ROS_INFO("AFter publishC2D, ->N = %d, ->M = %d", parameter->N, parameter->M);
- 
-  ROS_INFO("End of callback function for backend_C_node");
-  ROS_INFO("At the end of callback parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
   return;
 }
 
@@ -677,7 +661,6 @@ int main(int argc, char** argv)
   ros::NodeHandle n;
   ROS_INFO("Starting backend_C node..\n");
   ci_publisher = n.advertise<custom_messages::C2R>("/hsi/C2R", 1000);
-  cd_publisher = n.advertise<custom_messages::C2D>("/hsi/C2D", 1000);
   cr_publisher = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
 	
 	cr1_publisher = n.advertise<visualization_msgs::Marker>("map_related", 1);

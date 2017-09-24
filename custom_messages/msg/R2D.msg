@@ -1,12 +1,12 @@
 time stamp  #ros::Time::now()
-int32 event_type #0 = screen location, 1 = button_click, 2 = trajectory information
-float32[2] screen_pos
-string button_name
-bool is_valid_path
-bool is_train
-bool is_aided
-int32 map_number
-string name #name of person who is doing the experiment
-float32[] time_array
-string[] sequence_string_array
+string id #name of person who is doing the experiment
+string map_number
+string iteration
+int32 event_type #0 = button_click, 1 = trajectory information, 2 = cell information
+string description
+string switchtime_string
+string sequence_string
+string cost_of_path
+string is_valid_path
+string is_complete
 

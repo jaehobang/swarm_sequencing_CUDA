@@ -67,8 +67,8 @@ float d_wrapToPi(float input)
 __device__
 void d_robot_model_i(node* current, int i, float u_v, float u_w, float dt)
 {
-	float max_linear_velocity = 4; //Doubled max linear, angular velocity by 2
-	float max_angular_velocity = CUDART_PI_F / 4;
+	float max_linear_velocity = 8; //Doubled max linear, angular velocity by 2
+	float max_angular_velocity = CUDART_PI_F / 8;
 	u_v = fmaxf(-max_linear_velocity, fminf(max_linear_velocity, u_v));
 	u_w = fmaxf(-max_angular_velocity, fminf(max_angular_velocity, u_w));
 	current->robot_pos[i][0] = current->robot_pos[i][0] + u_v*cosf(current->robot_pos[i][2])*dt;
@@ -83,8 +83,8 @@ void d_antirendezvous(node* future, node *current, int i, float dt)
 {
 	//printf("Inside rendezvous\n");
 	float connectivity_radius = 20;
-	float gain_v = 2;
-	float gain_w = 2;
+	float gain_v = 4;
+	float gain_w = 4;
 	int N = current->N;
 	float v[2], dv[2], b[2];
 	float w, n;
@@ -143,8 +143,8 @@ void d_rendezvous(node* future, node *current, int i, float dt)
 {
 	//printf("Inside rendezvous\n");
 	float connectivity_radius = 20;
-	float gain_v = 2;
-	float gain_w = 2;
+	float gain_v = 4;
+	float gain_w = 4;
 	int N = current->N;
 	float v[2], dv[2], b[2];
 	float w, n;
@@ -204,8 +204,8 @@ void d_flock_biased(node* future, node *current, int i, float* bias, float dt)
 	float repulsion_radius = 5;
 	float alignment_radius = 10;
 	float attraction_radius = 20;
-	float gain_v = 2;
-	float gain_w = 2;
+	float gain_v = 4;
+	float gain_w = 4;
 	float position_i[2], position_j[2];
 	float heading_i, heading_j;
 	float v[2], d[2], dv[2], b[2];
@@ -393,7 +393,7 @@ int d_valid_poses(node curr_node, PARAM* param)
 	float robot_x, robot_y;
 	float robot_radius = param->robot_radius;
 	float mapsize = param->mapsize;
-	float safety_bounds = param->robot_radius;
+	float safety_bounds = 0;
 	/* check if position is off the map */
 	for (i = 0; i< N; i++)
 	{
@@ -524,8 +524,8 @@ void k_expandStates(node* d_expanded, node* d_open, PARAM* d_param, int dir, int
 	int currSequenceIndex = d_open[node_index].sequence_numel;
 
 	if(currSequenceIndex == 0) steps = 
-		(int) d_param->time_array[currSequenceIndex] / dt;
-	else steps = (int) (d_param->time_array[currSequenceIndex] - d_param->time_array[currSequenceIndex - 1]) / dt;
+		(int) (d_param->time_array[currSequenceIndex] / dt);
+	else steps = (int) ((d_param->time_array[currSequenceIndex] - d_param->time_array[currSequenceIndex - 1]) / dt);
 	/* Only write to global memory once */
 	if (robot_index == 0) d_expanded[index] = d_open[node_index];
 
@@ -868,8 +868,8 @@ void k_noSMHA(POS* d_poses, node* d_result, PARAM* d_param, int* d_sequence_end_
 	{
 		dstart = ti + dstart + dend;
 		dend = d_param->time_array[i];
-		if(i == 0) steps = (int) d_param->time_array[i] / dt;
-		else steps = (int) (d_param->time_array[i] - d_param->time_array[i-1]) / dt;
+		if(i == 0) steps = (int) (d_param->time_array[i] / dt);
+		else steps = (int) ( (d_param->time_array[i] - d_param->time_array[i-1]) / dt);
 		for (int j = 1; j <= steps; j++)
 		{
 			/* Forward kinematics -> Save it to POS* -> Update d_local */
@@ -1020,10 +1020,7 @@ node SMHAstar(PARAM* param, node h_start)
 	best_node_p->N = param->N;
 
 	node best_attempt; //criteria is distance to destination
-	best_attempt.isEmpty = 1;
-	best_attempt.F = numeric_limits<float>::max();
-	best_attempt.G = 0;
-	best_attempt.N = param->N;
+	memcpy(&best_attempt, &h_start, sizeof(node));
 
 	//convert double to float for time_arra
 	while (!qps[0].h_open.empty())
@@ -1187,6 +1184,7 @@ node SMHAstar(PARAM* param, node h_start)
 		printf("no route found, returning the best attempt\n");
 		memcpy(&result, &best_attempt, sizeof(node));
 	}
+
 	else {
 		printf("printing sequence...\n");
 		for (int i = 0; i < result.sequence_numel; i++)

@@ -1,26 +1,35 @@
 # Robot Positions (x,y,theta)
 robot_pos
--18 -10 0
--16 -10 0
--14 -10 0
--12 -10 0
--18 -12 0
--16 -12 0
--14 -12 0
--18 -14 0
--16 -14 0
--14 -14 0
+-38 -30 0
+-36 -30 0
+-34 -30 0
+-32 -30 0
+-38 -32 0
+-36 -32 0
+-34 -32 0
+-38 -34 0
+-36 -34 0
+-34 -34 0
 
 # Number of Obstacles
-M 1
+M 10
 
 # Obstacle positions (x,y,radius)
 obstacle_pos
-0 0 5
+10 5 1
+-10 5 1
+0 5 1
+-8 7 1
+5 20 1
+20 23 1
+30 -20 1
+-23 -23 1
+0 0 1
+13 24 1
 
 # Target Center (x,y)
 target_center
-10 10
+30 30
 
 # Target RAdius
 target_radius 7

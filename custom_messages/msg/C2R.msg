@@ -3,3 +3,4 @@ bool is_valid_path
 bool is_complete #did it reach destination
 string[] sequence_string_array
 bool eot
+int32 map_number

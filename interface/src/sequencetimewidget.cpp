@@ -212,16 +212,18 @@ QString SequenceTimeWidget::getSequence()
 
 
 //"-1" signifies one or more inputs not a number
-//"-2" signifies time summation over 50
+//"-2" signifies time summation over 60
 QString SequenceTimeWidget::getSwitchTime()
 {
+    qInfo() << "Inside get switchtime...";
     QString text = "";
-    int cumulative_time = 0;
+    float cumulative_time = 0;
     for(int i = 0; i < (int) sequence_list->rowCount(); i++)
     {
 				if(sequence_list->item(i,TIME_COL)->text() == "") break;
         bool ok;
         float duration = sequence_list->item(i,TIME_COL)->text().toFloat(&ok);
+        qInfo() << "duration is" << duration;
         if(ok == 0){
           return QString("-1");
         }
@@ -229,8 +231,9 @@ QString SequenceTimeWidget::getSwitchTime()
         text += QString::number(cumulative_time);
         text += ",";
     }
+    qInfo() << "made text is " << text;
     text.remove(text.size() - 1, 1);
-		if(cumulative_time > 50) return QString("-2");
+		if(cumulative_time > 60) return QString("-2");
     return text;
 }
 

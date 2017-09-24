@@ -19,10 +19,10 @@ TimeHorizonWidget::TimeHorizonWidget ( QWidget* parent ) : QWidget( parent )
     QLabel* time_label = new QLabel();
     QString num_of_spaces = "  ";
     QString text = "";
-    for(int i = 0; i < 11; i++)
+    for(int i = 0; i < 13; i++)
     {
         text += QString::number(i * 5);
-        text += " (s)";
+        text += "   ";
         if(i != 10) text += num_of_spaces;
     }
 
