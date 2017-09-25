@@ -53,7 +53,7 @@ void ConsoleWidget1::update(QString sequence, QString switchtime,
 
 QString ConsoleWidget1::getInfo()
 {
-    return QString(iteration);
+    return QString::number(iteration);
 }
 
 

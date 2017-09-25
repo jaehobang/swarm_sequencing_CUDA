@@ -140,6 +140,26 @@ void SequenceTimeWidget::sequenceCellClicked(int row, int col)
 
     /*For debugging*/
     qInfo() << sequence_list->item(row, col)->text();
+    
+		custom_messages::R2D r2d;
+    r2d.stamp = ros::Time::now();
+    r2d.id = "";
+    r2d.map_number = "";
+    r2d.iteration = "";
+    r2d.event_type = 2;
+    r2d.description = "Sequence table clicked! Item is "; 
+    if(col == TIME_COL)
+      r2d.description += "Duration for (row,col) (" + std::to_string(row) + "," + std::to_string(col) + ")";
+    else
+      r2d.description += sequence_list->item(row, col)->text().toStdString();
+    r2d.switchtime_string = "";
+    r2d.sequence_string = "";
+    r2d.cost_of_path = "";
+
+
+    id_publisher.publish(r2d);
+    ros::spinOnce();
+
     return;
 }
 
@@ -149,6 +169,26 @@ void SequenceTimeWidget::behaviorCellClicked(int row, int col)
     qInfo() << "Row = " << row << "Col = " << col;
     qInfo() << behavior_list->item(row,0)->text();
     qInfo() << "curr_selected_behavior is" << curr_selected_behavior;
+
+   //send r2d data
+    custom_messages::R2D r2d;
+    r2d.stamp = ros::Time::now();
+    r2d.id = "";
+    r2d.map_number = "";
+    r2d.iteration = "";
+    r2d.event_type = 2; //trajectory information
+    r2d.description = "Behavior table clicked! Item is ";
+    r2d.description += curr_selected_behavior.toStdString();
+    r2d.switchtime_string = "";
+    r2d.sequence_string = "";
+    r2d.cost_of_path = "";
+
+
+    id_publisher.publish(r2d);
+    ros::spinOnce();
+
+
+
     return;
 }
 
@@ -170,6 +210,26 @@ void SequenceTimeWidget::addButtonClicked()
     qInfo() << "updated sequence_list";
     sequence_array.push_back(curr_selected_behavior);
     qInfo() << "updated sequence_array";
+
+
+    custom_messages::R2D r2d;
+    r2d.stamp = ros::Time::now();
+    r2d.id = "";
+    r2d.map_number = "";
+    r2d.iteration = "";
+    r2d.event_type = 2; //trajectory information
+    r2d.description = "Add button clicked! Item is ";
+    r2d.description += curr_selected_behavior.toStdString();
+    r2d.switchtime_string = "";
+    r2d.sequence_string = "";
+    r2d.cost_of_path = "";
+
+
+    id_publisher.publish(r2d);
+    ros::spinOnce();
+
+
+
     return;
 }
 
@@ -181,7 +241,10 @@ void SequenceTimeWidget::deleteButtonClicked()
     qInfo() << "curr_selected_sequence_row is " << curr_selected_sequence_row;
     int clear_row = curr_selected_sequence_row;
     if( clear_row >= sequence_array.size() ) return;
+    QString selected_behavior = sequence_array[clear_row];
+ 
     sequence_array.erase(sequence_array.begin() + clear_row);
+
     for(int i = clear_row; i < sequence_list->rowCount(); i++)
     {
         if(i < (int) sequence_array.size())
@@ -189,7 +252,27 @@ void SequenceTimeWidget::deleteButtonClicked()
         else
             sequence_list->item(i, SEQ_COL)->setText("");
     }
+ 
+    custom_messages::R2D r2d;
+    r2d.stamp = ros::Time::now();
+    r2d.id = "";
+    r2d.map_number = "";
+    r2d.iteration = "";
+    r2d.event_type = 2; //trajectory information
+    r2d.description = "Delete button clicked! Item is ";
+    r2d.description += selected_behavior.toStdString();
+    r2d.switchtime_string = "";
+    r2d.sequence_string = "";
+    r2d.cost_of_path = "";
+
+
+    id_publisher.publish(r2d);
+    ros::spinOnce();
+
     return;
+
+
+
 }
 
 //"-5" means sequence modified by user so wrong input
@@ -259,6 +342,12 @@ void SequenceTimeWidget::setSequence(std::vector<QString> sequence)
   return;
 }
 
+
+void SequenceTimeWidget::setPublisher(ros::Publisher id_publisher)
+{
+  this->id_publisher = id_publisher;
+  return;
+}
 
 
 

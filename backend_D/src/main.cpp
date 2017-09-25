@@ -27,6 +27,8 @@ ofstream myfile;
 
 void callBack(const custom_messages::R2D::ConstPtr& msg)
 {
+  	myfile.open("/home/jaeho-linux/hri2017/src/backend_D/data_storage/backend_D.csv", fstream::app);
+
   string info_arr[COL_NUM];
   for(int i = 0; i < COL_NUM; i++)
   {
@@ -51,13 +53,12 @@ void callBack(const custom_messages::R2D::ConstPtr& msg)
   for(int i = 0; i < COL_NUM; i++)
   {
     result += info_arr[i];
-    result += ",";
+    result += ";";
   }
   result += "\n";
 
-  myfile << "TIME,ID,MAP NUMBER,ITERATION,DESCRIPTION,TIME ARRAY,SEQUENCE ARRAY,COST,VALID,COMPLETE\n";
-	myfile << result;
-	myfile.close();
+  myfile << result;
+  myfile.close();
 	return;
 }
 
@@ -68,7 +69,8 @@ int main(int argc, char** argv)
 {
 
 	myfile.open("/home/jaeho-linux/hri2017/src/backend_D/data_storage/backend_D.csv", fstream::app);
-
+  myfile << "TIME;ID;MAP NUMBER;ITERATION;DESCRIPTION;TIME ARRAY;SEQUENCE ARRAY;COST;VALID;COMPLETE\n";
+	myfile.close();
 
 	ros::init(argc, argv, "backend_D");
 	ros::NodeHandle n;

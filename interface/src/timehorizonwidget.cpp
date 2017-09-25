@@ -22,7 +22,7 @@ TimeHorizonWidget::TimeHorizonWidget ( QWidget* parent ) : QWidget( parent )
     for(int i = 0; i < 13; i++)
     {
         text += QString::number(i * 5);
-        text += "   ";
+        text += "    ";
         if(i != 10) text += num_of_spaces;
     }
 

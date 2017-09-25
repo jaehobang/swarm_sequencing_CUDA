@@ -45,6 +45,8 @@ void publishC2R()
   }
 
   c2r.cost_of_path = return_struct.cost_of_path;
+  if(return_struct.is_valid_path == 0)
+    c2r.cost_of_path = 100000;
   c2r.is_valid_path = return_struct.is_valid_path;
   c2r.is_complete = return_struct.is_complete;
   c2r.sequence_string_array = return_struct.sequence_string_array;
@@ -114,7 +116,7 @@ void publishMarkerArray()
 
   deleteMarkerArray();
 
-	ros::Rate i_Rate(0.5);
+	ros::Rate i_Rate(1);
   visualization_msgs::MarkerArray mk_arr;
   visualization_msgs::Marker mk;
   geometry_msgs::Point p;
@@ -553,6 +555,46 @@ void updateMap()
   ros::spinOnce();
   cr1_rate.sleep();
 
+  //2.4 map boundary
+  mk.ns = "boundary";
+  mk.id = 0;
+  mk.type = visualization_msgs::Marker::LINE_STRIP;
+  mk.scale.x = 1;
+  mk.scale.y = 1;
+  mk.scale.z = 1;
+  mk.color.r = 0;
+  mk.color.g = 0;
+  mk.color.b = 0;
+  mk.color.a = 1;
+  mk.lifetime = ros::Duration();
+
+  geometry_msgs::Point p1, p2, p3, p4;
+  p1.x = - (parameter->mapsize + mk.scale.x / 2);
+  p1.y = - (parameter->mapsize + mk.scale.y / 2);
+  p2.x = - (parameter->mapsize + mk.scale.x / 2);
+  p2.y = (parameter->mapsize + mk.scale.y / 2);
+  p3.x = (parameter->mapsize + mk.scale.x / 2);
+  p3.y = (parameter->mapsize + mk.scale.y / 2);
+  p4.x = (parameter->mapsize + mk.scale.x / 2);
+  p4.y = -(parameter->mapsize + mk.scale.y / 2);
+
+  mk.points.push_back(p1);
+  mk.points.push_back(p2);
+  mk.points.push_back(p3);
+  mk.points.push_back(p4);
+  mk.points.push_back(p1);
+  mk.pose.position.x = 0;
+  mk.pose.position.y = 0;
+
+
+
+  cr1_publisher.publish(mk);
+  ros::spinOnce();
+  cr1_rate.sleep();  
+
+    
+
+
 
 }
 
@@ -581,7 +623,10 @@ void handleEot(const custom_messages::R2C::ConstPtr& msg)
       return_struct.sequence_end_indices[i]);
   }
 
-  c2r.cost_of_path = return_struct.cost_of_path;
+  if(return_struct.is_valid_path == 0)
+  	c2r.cost_of_path = 100000; //very high number
+  else
+    c2r.cost_of_path = return_struct.cost_of_path;
   c2r.is_valid_path = return_struct.is_valid_path;
   c2r.is_complete = return_struct.is_complete;
   c2r.sequence_string_array = return_struct.sequence_string_array;

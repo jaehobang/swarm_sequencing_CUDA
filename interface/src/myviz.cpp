@@ -28,7 +28,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   cw = new ConsoleWidget1(this);
   thw = new TimeHorizonWidget(this);
   stw = new SequenceTimeWidget(this);
-
+  stw->setPublisher(id_publisher);
 
   rb = new QPushButton(QApplication::translate("childwidget", "Run"), this);
   nb = new QPushButton(QApplication::translate("childwidget", "Next"), this); 
@@ -232,6 +232,18 @@ void MyViz::submit()
    if(sequence == "-5"){
      QString str = QString("ERROR!\nMisspelled behavior in Sequence!!");
      this->generateErrorPopup(str);
+
+     custom_messages::R2D r2d;
+  	 r2d.stamp = ros::Time::now();
+   	 r2d.id = this->name;
+  	 r2d.map_number = "";
+  	 r2d.iteration = "";
+  	 r2d.event_type = EVENT_BUTTON;
+  	 r2d.description = "Submit Clicked, but misspelled behavior in sequence";
+  	 r2d.switchtime_string = "";
+  	 r2d.sequence_string = "";
+  	 id_publisher.publish(r2d);
+  	 ros::spinOnce();
 		 return;
    }
 
@@ -255,6 +267,20 @@ void MyViz::submit()
      if(switchtime == "-1") lab_text = QString("ERROR!\nInput is not a int or floating point number.");
      else lab_text = QString("ERROR!\nTotal time input exceeded maximum simulation time (60 seconds)!");
      this->generateErrorPopup(lab_text);
+
+	   custom_messages::R2D r2d;
+	   r2d.stamp = ros::Time::now();
+	   r2d.id = this->name;
+	   r2d.map_number = "";
+	   r2d.iteration = (cw->getInfo()).toStdString();
+	   r2d.event_type = EVENT_BUTTON;
+	   r2d.description = "Submit clicked! But input time exceeded max sim time";
+	   r2d.switchtime_string = this->curr_switchtime.toStdString();
+	   r2d.sequence_string = this->curr_sequence.toStdString();
+	   id_publisher.publish(r2d);
+	   ros::spinOnce();
+
+
      return;
    }   
 
@@ -262,18 +288,43 @@ void MyViz::submit()
    switchtime_arr = this->switchtimeInputConvert(switchtime);
 
    if(sequence_arr.size() > switchtime_arr.size()){
-    printf("sequence size = %d, switchtime size = %d\n");
+     printf("sequence size = %d, switchtime size = %d\n");
 
-    QString lab_text = QString("ERROR\nMore behaviors given than durations!!");
-    this->generateErrorPopup(lab_text);
+     QString lab_text = QString("ERROR\nMore behaviors given than durations!!");
+     this->generateErrorPopup(lab_text);
 
-    return;
+     custom_messages::R2D r2d;
+     r2d.stamp = ros::Time::now();
+	   r2d.id = this->name;
+  	 r2d.map_number = "";
+  	 r2d.iteration = "";
+  	 r2d.event_type = EVENT_BUTTON;
+  	 r2d.description = "Submit Clicked! More behaviors given than durations";
+  	 r2d.switchtime_string = "";
+  	 r2d.sequence_string = "";
+  	 id_publisher.publish(r2d);
+  	 ros::spinOnce();
+
+   	 return;
 
    }
    
    if(is_aided == 0 && sequence_arr.size() != switchtime_arr.size()){
-    QString lab_text = QString("ERROR\nNumber of Behaviors must match number of durations!!");
-    this->generateErrorPopup(lab_text);
+     QString lab_text = QString("ERROR\nNumber of Behaviors must match number of durations!!");
+     this->generateErrorPopup(lab_text);
+
+	   custom_messages::R2D r2d;
+ 	   r2d.stamp = ros::Time::now();
+   	 r2d.id = this->name;
+  	 r2d.map_number = "";
+  	 r2d.iteration = "";
+  	 r2d.event_type = EVENT_BUTTON;
+  	 r2d.description = "Submit Clicked! Number of behaviors does not match durations";
+  	 r2d.switchtime_string = "";
+  	 r2d.sequence_string = "";
+  	 id_publisher.publish(r2d);
+  	 ros::spinOnce();
+
     return;
 
    }
@@ -283,6 +334,21 @@ void MyViz::submit()
    {
      QString lab_text = QString("ERROR\nNo Switchtimes given!");
      this->generateErrorPopup(lab_text);
+
+
+	   custom_messages::R2D r2d;
+ 		 r2d.stamp = ros::Time::now();
+ 	 	 r2d.id = this->name;
+ 	   r2d.map_number = "";
+ 	 	 r2d.iteration = "";
+ 	 	 r2d.event_type = EVENT_BUTTON;
+ 	 	 r2d.description = "Submit Clicked! No switchtimes were given";
+ 	 	 r2d.switchtime_string = "";
+ 	 	 r2d.sequence_string = "";
+ 	 	 id_publisher.publish(r2d);
+ 	 	 ros::spinOnce();
+
+
      return;
    }
 
@@ -315,7 +381,19 @@ void MyViz::submit()
 
 	 this->thw->setValues(switchtime_timehorizon, color_timehorizon);
    
-   
+   custom_messages::R2D r2d;
+   r2d.stamp = ros::Time::now();
+   r2d.id = this->name;
+   r2d.map_number = "";
+   r2d.iteration = cw->getInfo().toStdString();
+   r2d.event_type = EVENT_BUTTON;
+   r2d.description = "Submit Clicked";
+   r2d.switchtime_string = this->curr_switchtime.toStdString();
+   r2d.sequence_string = this->curr_sequence.toStdString();
+   id_publisher.publish(r2d);
+   ros::spinOnce();
+
+
 	  
 	 return;
 
@@ -388,18 +466,15 @@ void MyViz::generate()
 
    //5. create and publish r2d message
    ROS_INFO("Inside function generate()...sending R2D message\n");
-   std::vector<string> b_sequences;
-   for(int i = 0; i < sequence_arr.size(); i++)
-   {
-     b_sequences.push_back(behavior_array[sequence_arr[i]]);
-   }
    custom_messages::R2D r2d;
    r2d.stamp = ros::Time::now();
+   r2d.id = this->name;
+   r2d.map_number = "";
+   r2d.iteration = cw->getInfo().toStdString();
    r2d.event_type = EVENT_BUTTON;
-   r2d.description = "Button Run Clicked";
+   r2d.description = "Run Clicked";
    r2d.switchtime_string = this->curr_switchtime.toStdString();
    r2d.sequence_string = this->curr_sequence.toStdString();
-   r2d.id = this->name;
    id_publisher.publish(r2d);
    ros::spinOnce();
 
@@ -480,6 +555,8 @@ void MyViz::next()
 
 			QVBoxLayout* layout = new QVBoxLayout();
 			layout->addWidget(lab);
+      layout->addWidget(but);
+    
 			pw->show();
 			
      //2. Running the input checker
@@ -521,6 +598,23 @@ void MyViz::next()
 		ic_publisher.publish(r2c);
 		ros::spinOnce();
     
+
+
+    // Send r2d
+   custom_messages::R2D r2d;
+   r2d.stamp = ros::Time::now();
+   r2d.id = this->name;
+   r2d.map_number = "";
+   r2d.iteration = "";
+   r2d.event_type = EVENT_BUTTON;
+   r2d.description = "Next Clicked";
+   r2d.switchtime_string = "";
+   r2d.sequence_string = "";
+   id_publisher.publish(r2d);
+   ros::spinOnce();
+
+
+
 		return;
 }
 
@@ -571,6 +665,28 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
     popup->show();
 
 		this->eot_processed = 1;
+
+    //send r2d data
+    custom_messages::R2D r2d;
+    r2d.stamp = ros::Time::now();
+    r2d.id = this->name;
+    r2d.map_number = std::to_string(msg->map_number - 1);
+    r2d.iteration = (cw->getInfo()).toStdString();
+    r2d.event_type = 1; //trajectory information
+    r2d.description = "End of Training Optimal Sequence";
+    r2d.switchtime_string = this->curr_switchtime.toStdString();
+    r2d.sequence_string = this->curr_sequence.toStdString();
+    r2d.cost_of_path = std::to_string(msg->cost_of_path);
+    if(msg->is_valid_path) r2d.is_valid_path = "VALID";
+    else r2d.is_valid_path = "INVALID";
+    if(msg->is_complete) r2d.is_complete = "COMPLETE";
+    else r2d.is_complete = "INCOMPLETE";
+
+    id_publisher.publish(r2d);
+    ros::spinOnce();
+
+
+
 		return;
   }
 
@@ -638,6 +754,25 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
     stw->setSequence(sequence_arr_string);
   	  
    }
+
+  // Send r2d data
+  custom_messages::R2D r2d;
+  r2d.stamp = ros::Time::now();
+  r2d.id = this->name;
+  r2d.map_number = std::to_string(msg->map_number - 1);
+  r2d.iteration = (cw->getInfo()).toStdString();
+  r2d.event_type = 1; //trajectory information
+  r2d.description = "Sequence Generated";
+  r2d.switchtime_string = this->curr_switchtime.toStdString();
+  r2d.sequence_string = this->curr_sequence.toStdString();
+  r2d.cost_of_path = std::to_string(msg->cost_of_path);
+  if(msg->is_valid_path) r2d.is_valid_path = "VALID";
+  else r2d.is_valid_path = "INVALID";
+  if(msg->is_complete) r2d.is_complete = "COMPLETE";
+  else r2d.is_complete = "INCOMPLETE";
+
+  id_publisher.publish(r2d);
+  ros::spinOnce();
 
   return;
 

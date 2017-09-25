@@ -1,12 +1,31 @@
-NAME, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME
-,,,,Generated path is valid,932.250793,2017-09-16T18:06:18.316009
-NAME, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME
-,,,,Generated path is valid,932.250793,2017-09-16T18:25:22.849015
-NAME, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME
-Tom,train,map20,iter1,Generated path is valid,932.250793,2017-09-16T19:51:45.095726
-NAME, AIDED VS UNAIDED, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME
-,unaided,,,,Generate,,2017-09-18T01:42:15.518936
-NAME, AIDED VS UNAIDED, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME
-jaeho,aided,,,,Generate,,2017-09-18T13:31:23.993078
-NAME, AIDED VS UNAIDED, TRAIN VS TEST, MAP_NUM, ITER_NUM, EVENT, COST, TIME
-asd,aided,,,,Run,,2017-09-19T03:17:46.555441
+TIME;ID;MAP NUMBER;ITERATION;DESCRIPTION;TIME ARRAY;SEQUENCE ARRAY;COST;VALID;COMPLETE
+2017-09-25T02:17:08.324044;;;;Behavior table clicked! Item is Rendezvous;;;;;;
+2017-09-25T02:17:09.668089;;;;Sequence table clicked! Item is Duration for (row,col) (0,1);;;;;;
+2017-09-25T02:17:10.243934;;;;Sequence table clicked! Item is Duration for (row,col) (1,1);;;;;;
+2017-09-25T02:17:10.644166;;;;Sequence table clicked! Item is Duration for (row,col) (2,1);;;;;;
+2017-09-25T02:17:10.948286;;;;Sequence table clicked! Item is Duration for (row,col) (3,1);;;;;;
+2017-09-25T02:17:11.710603;asdf;;0;Submit Clicked;5,10,15,20;;;;;
+2017-09-25T02:17:12.398220;asdf;;0;Submit Clicked;5,10,15,20;;;;;
+2017-09-25T02:17:12.398490;asdf;;0;Run Clicked;5,10,15,20;;;;;
+2017-09-25T02:17:14.047822;asdf;1;1;Sequence Generated;5,10,15,20;Flock East->Flocking->Flock North->Rendezvous;498.456757;VALID;COMPLETE;
+2017-09-25T02:17:20.861970;asdf;;;Next Clicked;;;;;;
+2017-09-25T02:17:22.347894;;;;Sequence table clicked! Item is Duration for (row,col) (0,1);;;;;;
+2017-09-25T02:17:23.284254;;;;Sequence table clicked! Item is Duration for (row,col) (1,1);;;;;;
+2017-09-25T02:17:23.635976;;;;Sequence table clicked! Item is Duration for (row,col) (2,1);;;;;;
+2017-09-25T02:17:23.964055;;;;Sequence table clicked! Item is Duration for (row,col) (3,1);;;;;;
+2017-09-25T02:17:24.291920;;;;Sequence table clicked! Item is Duration for (row,col) (4,1);;;;;;
+2017-09-25T02:17:24.971426;asdf;;0;Submit Clicked;5,10,15,20,25;;;;;
+2017-09-25T02:17:25.734382;asdf;;0;Submit Clicked;5,10,15,20,25;;;;;
+2017-09-25T02:17:25.734669;asdf;;0;Run Clicked;5,10,15,20,25;;;;;
+2017-09-25T02:17:26.047968;asdf;2;1;Sequence Generated;5,10,15,20,25;Flock North->Flock East->Rendezvous;389.827087;VALID;COMPLETE;
+2017-09-25T02:17:32.997052;asdf;;;Next Clicked;;;;;;
+TIME;ID;MAP NUMBER;ITERATION;DESCRIPTION;TIME ARRAY;SEQUENCE ARRAY;COST;VALID;COMPLETE
+2017-09-25T02:19:26.660629;;;;Sequence table clicked! Item is Duration for (row,col) (0,1);;;;;;
+2017-09-25T02:19:30.324380;;;;Sequence table clicked! Item is Duration for (row,col) (1,1);;;;;;
+2017-09-25T02:19:30.884396;;;;Sequence table clicked! Item is Duration for (row,col) (2,1);;;;;;
+2017-09-25T02:19:31.268193;;;;Sequence table clicked! Item is Duration for (row,col) (3,1);;;;;;
+2017-09-25T02:19:31.911618;sdf;;0;Submit Clicked;5,10,15,20;;;;;
+2017-09-25T02:19:32.597993;sdf;;0;Submit Clicked;5,10,15,20;;;;;
+2017-09-25T02:19:32.598329;sdf;;0;Run Clicked;5,10,15,20;;;;;
+2017-09-25T02:19:34.267769;sdf;0;1;Sequence Generated;5,10,15,20;Flock East->Flocking->Flock North->Rendezvous;498.456757;VALID;COMPLETE;
+2017-09-25T02:19:41.304823;sdf;;;Next Clicked;;;;;;

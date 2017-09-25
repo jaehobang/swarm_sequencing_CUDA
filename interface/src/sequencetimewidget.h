@@ -2,6 +2,8 @@
 #define SEQUENCETIMEWIDGET_H
 
 #include <QtWidgets>
+#include <ros/ros.h>
+#include "custom_messages/R2D.h"
 
 #define SEQ_COL 2
 #define TIME_COL 1
@@ -17,6 +19,7 @@ public:
     QString getSequence();
     QString getSwitchTime();
     void reset();
+    void setPublisher(ros::Publisher id_publisher);
 		void setSequence(std::vector<QString> sequence);
 
 private Q_SLOTS:
@@ -39,10 +42,11 @@ private:
     std::vector<QString> sequence_array;
     int curr_selected_sequence_row;
     QString curr_selected_behavior;
+    ros::Publisher id_publisher;
+
 
     void generateBehaviorList();
     void generateSequenceList();
-
 };
 
 

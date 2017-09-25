@@ -16,9 +16,9 @@ M 6
 
 # Obstacle positions (x,y,radius)
 obstacle_pos
--8 2 2
--8 -4 2
--8 -10 2
+-6 2 2
+-6 -4 2
+-6 -10 2
 3 5 2
 3 11 2
 3 17 2
