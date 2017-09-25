@@ -15,11 +15,11 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   ic_publisher = n.advertise<custom_messages::R2C>("/hsi/R2C", 1000);
   id_publisher = n.advertise<custom_messages::R2D>("/hsi/R2D", 1000);
   ic_subscriber = n.subscribe<custom_messages::C2R>("/hsi/C2R", 1000, &MyViz::callBack, this);
-  
+  ic2_subscriber = n.subscribe<custom_messages::C2R>("/hsi/C2R2", 1000, &MyViz::callBack2, this);  
+
   this->name = "";
   this->is_aided = 0;
   this->curr_map_number = 0;
-  this->eot_processed = 0;
 
 
   tw = new TimerWidget(this);
@@ -546,36 +546,46 @@ void MyViz::next()
     	popup->show();
     }
 
-		if(curr_map_number == 5 && eot_processed == 0 && is_aided == 0)
+
+		if(curr_map_number <= 5 && is_aided == 0)
 		{
-    	pw = new QWidget();
+    	QWidget* pw = new QWidget();
 			pw->setAttribute(Qt::WA_DeleteOnClose);
-			QLabel* lab = new QLabel("Please wait......");
+      QString lab_val = QString("For given durations,\nYour last sequence: ");
+      lab_val += this->curr_sequence;
+      lab_val += "\nYour cost: " + this->curr_cost;
+      lab_val += "\nOptimal sequence: " + this->aided_optimal_sequence;
+      lab_val += "\nOptimal cost: " + this->aided_optimal_cost;
+     
+			QLabel* lab = new QLabel(lab_val);
       QPushButton* but = new QPushButton("Close");
+
+      QObject::connect(but, SIGNAL(released()), pw, SLOT(close()));   
 
 			QVBoxLayout* layout = new QVBoxLayout();
 			layout->addWidget(lab);
       layout->addWidget(but);
     
+      pw->setLayout(layout);
 			pw->show();
-			
-     //2. Running the input checker
-      std::vector<float> switchtime_arr = 
-					this->switchtimeInputConvert(this->curr_switchtime);
-    
-      custom_messages::R2C r2c;
-      r2c.stamp = ros::Time::now();
-      r2c.is_aided = this->is_aided; //0 is unaided
-      r2c.eot = 1;
-      /* Debugging purposes.... */
-      printf("Printing the switch times..\n");
-      r2c.time_array = switchtime_arr;
-      ic_publisher.publish(r2c);
-      ros::spinOnce();
-      return;
+
+      //publish this information to data node
+      custom_messages::R2D r2d;
+      r2d.stamp = ros::Time::now();
+	    r2d.id = this->name;
+   		r2d.map_number = "";
+   		r2d.iteration = "";
+   		r2d.event_type = EVENT_BUTTON;
+   		r2d.description = "Optimal sequence for given time";
+   		r2d.switchtime_string = "";
+   		r2d.sequence_string = (this->aided_optimal_sequence).toStdString();
+      r2d.cost_of_path = (this->aided_optimal_cost).toStdString();
+   		id_publisher.publish(r2d);
+   		ros::spinOnce();
     }
 
-    if(curr_map_number == 5 && is_aided){
+
+    if(curr_map_number == 5){
 
 	    QWidget* popup = new QWidget();
   	  popup->setAttribute(Qt::WA_DeleteOnClose);
@@ -623,6 +633,27 @@ void MyViz::setNodeHandle(ros::NodeHandle nn)
   n = nn;
 }
 
+
+void MyViz::callBack2(const custom_messages::C2R::ConstPtr& msg)
+{
+  ROS_INFO("Callback2 function inside interface");
+  std::vector<string> sequence_string_array = msg->sequence_string_array;
+  float cost_of_path = msg->cost_of_path;
+  string s = "";
+  for(int i = 0; i < sequence_string_array.size(); i++)
+  {
+		s += sequence_string_array[i];
+    if( i != sequence_string_array.size() - 1 ) s += "->";
+  }
+  this->aided_optimal_sequence = QString::fromStdString(s);
+  this->aided_optimal_cost = QString::number(cost_of_path);
+  return;
+
+}
+
+
+
+
 void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
 {
 
@@ -633,63 +664,6 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   int is_valid_path = (int) msg->is_valid_path;
   int is_complete = (int) msg->is_complete;
  
-
-
-  if(msg->eot) {
-    pw->close();
-    QWidget* popup = new QWidget();
-    popup->setAttribute(Qt::WA_DeleteOnClose);
-		QString label_string = "Test Session is about to begin!\n";
-    if((int) cost_of_path == (int) curr_cost.toFloat()){
-      label_string += "Just for reference, for the given times, computer generated the optimal sequence that is same as yours!";
-    }
-    else{
-      label_string += "Just for reference, for the given times, computer generated the optimal sequence that is lower in cost than yours!\n";
-      label_string += "The sequence is ";
-    	for(int i = 0; i < sequence_string_array.size(); i++)
-   		{
-      	label_string += QString::fromStdString(sequence_string_array[i]);
-      	if(i != sequence_string_array.size() -1 ) label_string += ", ";
-    	}
-	  }
-    QLabel* lab = new QLabel(label_string);
-    QPushButton* but = new QPushButton("Close");
-
-    connect(but, SIGNAL(released()), popup, SLOT(close()));
-
-    QVBoxLayout* layout = new QVBoxLayout();
-    layout->addWidget(lab);
-    layout->addWidget(but);
-
-    popup->setLayout(layout);
-    popup->show();
-
-		this->eot_processed = 1;
-
-    //send r2d data
-    custom_messages::R2D r2d;
-    r2d.stamp = ros::Time::now();
-    r2d.id = this->name;
-    r2d.map_number = std::to_string(msg->map_number - 1);
-    r2d.iteration = (cw->getInfo()).toStdString();
-    r2d.event_type = 1; //trajectory information
-    r2d.description = "End of Training Optimal Sequence";
-    r2d.switchtime_string = this->curr_switchtime.toStdString();
-    r2d.sequence_string = this->curr_sequence.toStdString();
-    r2d.cost_of_path = std::to_string(msg->cost_of_path);
-    if(msg->is_valid_path) r2d.is_valid_path = "VALID";
-    else r2d.is_valid_path = "INVALID";
-    if(msg->is_complete) r2d.is_complete = "COMPLETE";
-    else r2d.is_complete = "INCOMPLETE";
-
-    id_publisher.publish(r2d);
-    ros::spinOnce();
-
-
-
-		return;
-  }
-
 
   
   //4. Update the Console Widget

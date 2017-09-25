@@ -13,9 +13,10 @@ using namespace std;
 RETURN testmain(PARAM* parametereter, int is_aided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed);
 //int testmain();
 RETURN return_struct; 
-ros::Publisher ci_publisher;
-ros::Publisher cr_publisher;
-ros::Publisher cr1_publisher;
+ros::Publisher ci_publisher; //publishes whatever is requested
+ros::Publisher ci1_publisher; //publishes optimal sequence for unaided/train
+ros::Publisher cr_publisher; //publishes trajectory to rviz
+ros::Publisher cr1_publisher; //publishes map info to rvia
 PARAM* parameter;
 int N = 10;
 int MAP_NUM = 0;
@@ -34,6 +35,27 @@ int errorCheckR2C(const custom_messages::R2C::ConstPtr& msg)
   }
 }
 
+
+void publishC2R2(RETURN return_tmp)
+{
+  custom_messages::C2R c2r;  
+
+
+  c2r.cost_of_path = return_tmp.cost_of_path;
+  if(return_struct.is_valid_path == 0)
+    c2r.cost_of_path = 100000;
+  c2r.is_valid_path = return_tmp.is_valid_path;
+  c2r.is_complete = return_tmp.is_complete;
+  c2r.sequence_string_array = return_tmp.sequence_string_array;  
+  c2r.map_number = map_sequence[MAP_NUM];
+  ci1_publisher.publish(c2r);
+	ros::spinOnce();
+ 
+	return;
+}
+
+
+
 void publishC2R()
 {
   custom_messages::C2R c2r;  
@@ -49,8 +71,7 @@ void publishC2R()
     c2r.cost_of_path = 100000;
   c2r.is_valid_path = return_struct.is_valid_path;
   c2r.is_complete = return_struct.is_complete;
-  c2r.sequence_string_array = return_struct.sequence_string_array;
-  c2r.eot = 0;  
+  c2r.sequence_string_array = return_struct.sequence_string_array;  
   c2r.map_number = map_sequence[MAP_NUM];
   ci_publisher.publish(c2r);
 	ros::spinOnce();
@@ -598,47 +619,6 @@ void updateMap()
 
 }
 
-void handleEot(const custom_messages::R2C::ConstPtr& msg)
-{
-  int is_aided = 1;
-  std::vector<float> time_array = msg->time_array;
-  std::vector<int> sequence_array;
-  std::vector<uint8_t> is_fixed;
-  ROS_INFO("going into parsemap");
-  ROS_INFO("came back from parsemap");
-	printf("N = %d, M = %d\n", parameter->N, parameter->M);
-
-  PARAM local_parameter;
-  memcpy(&local_parameter, parameter, sizeof(PARAM));
-  //3. Call the kernel code
-  ROS_INFO("Right before test main parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
-  return_struct = testmain(&local_parameter, is_aided, time_array, sequence_array, is_fixed);  
-
-
-  custom_messages::C2R c2r;  
-
-  for(int i = 0; i < return_struct.sequence_end_indices.size(); i++)
-  {
-    printf("sequence_end_indices for [%d] is %d\n", i,
-      return_struct.sequence_end_indices[i]);
-  }
-
-  if(return_struct.is_valid_path == 0)
-  	c2r.cost_of_path = 100000; //very high number
-  else
-    c2r.cost_of_path = return_struct.cost_of_path;
-  c2r.is_valid_path = return_struct.is_valid_path;
-  c2r.is_complete = return_struct.is_complete;
-  c2r.sequence_string_array = return_struct.sequence_string_array;
-  c2r.eot = 1; 
-  c2r.map_number = map_sequence[MAP_NUM];
-  ci_publisher.publish(c2r);
-	ros::spinOnce();
- 
-	return;
-
-}
-
 
 void callBack(const custom_messages::R2C::ConstPtr& msg)
 { 
@@ -663,11 +643,6 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
 		return;
 	}
 
-
-  if(msg->eot == 1){
-		handleEot(msg);
-    return;
-  }
  
   //2. Parse the given message
   int is_aided = (int) msg->is_aided;
@@ -694,7 +669,12 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
 	ROS_INFO("Finished publishing MarkerArray");
   ROS_INFO("AFter publishMarkerArray, ->N = %d, ->M = %d", parameter->N, parameter->M);
  
-  //6. Publish a c2d message
+  //6. if unaided and map_num < 5, do testmain again and send c2r2
+  if(is_aided == 0 && MAP_NUM <= 5){
+    std::vector<int> seq_tmp;
+    RETURN return_tmp = testmain(&local_parameter, 1, time_array, seq_tmp, is_fixed);
+    publishC2R2(return_tmp);
+  }
   return;
 }
 
@@ -706,6 +686,7 @@ int main(int argc, char** argv)
   ros::NodeHandle n;
   ROS_INFO("Starting backend_C node..\n");
   ci_publisher = n.advertise<custom_messages::C2R>("/hsi/C2R", 1000);
+  ci1_publisher = n.advertise<custom_messages::C2R>("/hsi/C2R2", 1000);
   cr_publisher = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
 	
 	cr1_publisher = n.advertise<visualization_msgs::Marker>("map_related", 1);

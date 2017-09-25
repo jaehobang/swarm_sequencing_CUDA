@@ -43,6 +43,7 @@ public:
   MyViz( QWidget* parent = 0);
   virtual ~MyViz();
   void callBack(const custom_messages::C2R::ConstPtr& msg);
+  void callBack2(const custom_messages::C2R::ConstPtr& msg);
   void setNodeHandle(ros::NodeHandle nn);
   void setNameAndAided(string n, uint8_t is_aided);
 
@@ -64,7 +65,6 @@ private:
   QPushButton* sb;
   TimeHorizonWidget* thw;
 	SequenceTimeWidget* stw;
-  QWidget* pw;
   QWidget* np;
 
   rviz::VisualizationManager* manager_;
@@ -75,6 +75,7 @@ private:
   ros::Publisher ic_publisher;
   ros::Publisher id_publisher;
   ros::Subscriber ic_subscriber;
+  ros::Subscriber ic2_subscriber;
 
   std::vector<string> behavior_array = { "Rendezvous", "Flocking", "Flock East", "Flock North", "Flock West", "Flock South", "Antirendezvous" };
   std::vector<string> behavior_array_short = {"r", "i", "e", "n", "w", "s", "a"};
@@ -86,8 +87,9 @@ private:
   QString curr_cost;
   QString curr_valid;
   QString curr_complete;
+  QString aided_optimal_sequence;
+  QString aided_optimal_cost;
   int curr_map_number;
-  uint8_t eot_processed;
 
 
   std::vector<int> sequenceInputConvert(QString sequence);
