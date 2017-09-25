@@ -10,8 +10,7 @@ class TimerWidget : public QWidget
 
 public:
     TimerWidget(QWidget *parent = 0); //3 minutes per map
-		void reset();
-
+		void reset(int time_limit);
 
 Q_SIGNALS:
 		void signalDone();
@@ -19,7 +18,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
 		void slotDone();
-
+    void pauseResume();
 
 private:
     Timer* timer;

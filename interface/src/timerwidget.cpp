@@ -19,9 +19,16 @@ TimerWidget::TimerWidget(QWidget *parent) : QWidget( parent )
 
 }
 
-void TimerWidget::reset()
+void TimerWidget::reset(int time_limit)
 {
-		timer->reset();
+		timer->reset(time_limit);
+    return;
+}
+
+void TimerWidget::pauseResume()
+{ 
+    printf("Inside pauseResume in timerwidget!!\n");
+    timer->pauseResume();
     return;
 }
 

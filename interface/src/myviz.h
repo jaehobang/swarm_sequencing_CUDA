@@ -63,9 +63,15 @@ private:
   QPushButton* rb;
   QPushButton* nb;
   QPushButton* sb;
+  QPushButton* prb;
   TimeHorizonWidget* thw;
 	SequenceTimeWidget* stw;
   QWidget* np;
+  QWidget* pw;
+  QLabel* vl; //valid label
+  QLabel* cl; //complete label
+  QLabel* tl;
+  QProgressBar* pb;
 
   rviz::VisualizationManager* manager_;
   rviz::RenderPanel* render_panel_;

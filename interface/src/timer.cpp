@@ -3,14 +3,13 @@
 
 Timer::Timer(QWidget *parent, int default_time) : QLCDNumber(parent)
 {
-    d_time = default_time;
     time_left = default_time;
     setSegmentStyle(Filled);
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(showTime()));
     timer->start(1000);
-
+    is_paused = 0;
     showTime();
 
 
@@ -20,21 +19,29 @@ Timer::Timer(QWidget *parent, int default_time) : QLCDNumber(parent)
 
 void Timer::showTime()
 {
-    QString text = QString::number(time_left);
-    if(time_left != 0) time_left--;
-    else {
+   if(is_paused == 0 && time_left != 0) time_left--;
+    else if(is_paused == 0 && time_left == 0){
 			timer->stop();
     	this->signalDone();
 		}
+    QString text = QString::number(time_left);
+ 
     display(text);
 }
 
-void Timer::reset()
+void Timer::reset(int time_limit)
 {
-    time_left = d_time;
+    time_left = time_limit + 1;
 		timer->start(1000);
 		showTime();
 }
 
+void Timer::pauseResume()
+{
+  //If pause == 1, it means stop the timer, 
+  //If pause == 0, it means start the timer, 
+  this->is_paused = !this->is_paused; 
 
+
+}
 

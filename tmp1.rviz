@@ -23,6 +23,9 @@ Global Options:
   Frame Rate: 30
 Name: root
 Tools:
+  - Class: rviz/PublishPoint
+    Single click: true
+    Topic: /clicked_point
 Value: true
 Views:
   Current:

@@ -9,8 +9,8 @@ class Timer : public QLCDNumber
 
 public:
     Timer(QWidget *parent = 0, int time_limit = 18000); //3 minutes per map
-    void reset();
-
+    void reset(int time_limit);
+    void pauseResume();
 
 Q_SIGNALS:
     void signalDone();
@@ -21,7 +21,7 @@ private Q_SLOTS:
 private:
 		QTimer* timer;
     int time_left;
-    int d_time;
+    bool is_paused;
 
 };
 

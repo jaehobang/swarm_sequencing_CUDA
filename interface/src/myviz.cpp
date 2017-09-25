@@ -33,6 +33,19 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   rb = new QPushButton(QApplication::translate("childwidget", "Run"), this);
   nb = new QPushButton(QApplication::translate("childwidget", "Next"), this); 
   sb = new QPushButton(QApplication::translate("childwidget", "Submit"), this);
+  prb = new QPushButton(QApplication::translate("childwidget", "Pause/Resume"), this);
+
+  vl = new QLabel("Valid");
+  cl = new QLabel("Complete");
+  vl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+  cl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+
+  tl = new QLabel("Test Progress");
+
+  pb = new QProgressBar();
+  pb->setTextVisible( false );
+  pb->setRange(0,20);
+  pb->setValue(curr_map_number);
 
   render_panel_ = new rviz::RenderPanel();
 
@@ -40,11 +53,13 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   stw->setFixedSize(QSize(450, 400));
   cw->setFixedSize(QSize(450, 120));
   thw->setFixedSize(QSize(450, 100));
+  pb->setFixedSize(QSize(450, 30));
 
   connect(tw, SIGNAL(signalDone()), this, SLOT(timerDone()));
   connect(rb, SIGNAL(released()), this, SLOT(generate()));
   connect(nb, SIGNAL(released()), this, SLOT(checkNext()));
 	connect(sb, SIGNAL(released()), this, SLOT(submit()));
+  connect(prb, SIGNAL(released()), tw, SLOT(pauseResume()));
 
   QVBoxLayout* col1 = new QVBoxLayout();
   col1->addWidget(render_panel_);
@@ -58,16 +73,25 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   rowTmp2->addWidget(labelTmp);
   rowTmp2->addWidget(sb);
 
+  QHBoxLayout* rowTmp3 = new QHBoxLayout();
+  rowTmp3->addWidget(vl);
+  rowTmp3->addWidget(cl);
+
   QVBoxLayout* col2 = new QVBoxLayout();
+  col2->addWidget(prb);
   col2->addWidget(tw);
   //col2->addWidget(sw);
   col2->addWidget(stw);
 
   col2->addLayout(rowTmp2);
   col2->addWidget(thw);
+  col2->addLayout(rowTmp3);
   col2->addWidget(cw);
  
   col2->addLayout(rowTmp);
+  col2->addWidget(tl);
+  col2->addWidget(pb);
+
 
   QHBoxLayout* row = new QHBoxLayout();
   row->addLayout(col1);
@@ -90,8 +114,8 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   manager_->load( config );
 
-  /*
-
+  
+/*
   trajectory_ = manager_->createDisplay( "rviz/MarkerArray", "Marker Array", true );
   ROS_ASSERT( trajectory_ != NULL );
 
@@ -115,13 +139,14 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   axes_->subProp("Length")->setValue(5);
   axes_->subProp("Radius")->setValue(0.1);
-
+*/
+/*
   rviz::YamlConfigWriter* writer = new rviz::YamlConfigWriter();
   manager_->save(config);
   writer->writeFile(config, "/home/jaeho-linux/hri2017/tmp1.rviz");
   if(writer->error()) {qInfo() << writer->errorMessage();}  
-
-  */
+*/
+  
 
 }
 
@@ -144,6 +169,10 @@ void MyViz::timerDone()
   //1. Make a popup screen that says Timer has reached zero and will be moving on to the next map
   QWidget* popup = new QWidget();
   popup->setAttribute(Qt::WA_DeleteOnClose);
+  QRect rec = QApplication::desktop()->screenGeometry();
+  int height = rec.height();
+  int width = rec.width();
+  popup->move(width / 2, height / 2);
   QLabel* lab = new QLabel("Your time for this map has ended!!\nLet's move on to the next one!");
   QPushButton* but = new QPushButton("Close");
 
@@ -404,6 +433,11 @@ void MyViz::generateErrorPopup(QString str)
 {
   QWidget* popup = new QWidget();
   popup->setAttribute(Qt::WA_DeleteOnClose);
+  QRect rec = QApplication::desktop()->screenGeometry();
+  int height = rec.height();
+  int width = rec.width();
+  printf("height, width of application desktop is %d %d\n", height, width);
+  popup->move(width / 2, height / 2);
   QLabel* lab = new QLabel(str);
   QPushButton* but = new QPushButton("Close");
 
@@ -487,6 +521,11 @@ void MyViz::checkNext()
 {
    np = new QWidget();
    np->setAttribute(Qt::WA_DeleteOnClose);
+   QRect rec = QApplication::desktop()->screenGeometry();
+   int height = rec.height();
+   int width = rec.width();
+   np->move(width / 2, height / 2);
+
    QLabel* lab = new QLabel("Are you sure you want to move to the next map?");
    QPushButton* yes_but = new QPushButton("Yes");
    QPushButton* no_but = new QPushButton("No");
@@ -518,11 +557,14 @@ void MyViz::nextWrapper()
 void MyViz::next()
 {
     //Reset everything for every component and update the map to the next one
-    tw->reset();
-		stw->reset();
-		cw->reset();
+    tw->reset(180);
+    stw->reset();
+    cw->reset();
     thw->reset();
+    vl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+    cl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
 		this->curr_map_number++;
+    pb->setValue(this->curr_map_number);
 
 		/*TODO
       Need to generate popup if map number is 5 
@@ -533,7 +575,11 @@ void MyViz::next()
 		if(curr_map_number == 20){
       QWidget* popup = new QWidget();
   	  popup->setAttribute(Qt::WA_DeleteOnClose);
-   		QLabel* lab = new QLabel("You have reached the end!! Thank you!!");
+   	  QRect rec = QApplication::desktop()->screenGeometry();
+      int height = rec.height();
+      int width = rec.width();
+      popup->move(width / 2, height / 2);
+    	QLabel* lab = new QLabel("You have reached the end!! Thank you!!");
     	QPushButton* but = new QPushButton("Close");
 
     	connect(but, SIGNAL(released()), popup, SLOT(close()));
@@ -549,8 +595,13 @@ void MyViz::next()
 
 		if(curr_map_number <= 5 && is_aided == 0)
 		{
-    	QWidget* pw = new QWidget();
+    	pw = new QWidget();
 			pw->setAttribute(Qt::WA_DeleteOnClose);
+      QRect rec = QApplication::desktop()->screenGeometry();
+  		int height = rec.height();
+  		int width = rec.width();
+  		pw->move(width / 2, height / 2);
+
       QString lab_val = QString("For given durations,\nYour last sequence: ");
       lab_val += this->curr_sequence;
       lab_val += "\nYour cost: " + this->curr_cost;
@@ -589,7 +640,12 @@ void MyViz::next()
 
 	    QWidget* popup = new QWidget();
   	  popup->setAttribute(Qt::WA_DeleteOnClose);
-   		QLabel* lab = new QLabel("Test Session is about to Begin!!");
+   	  QRect rec = QApplication::desktop()->screenGeometry();
+      int height = rec.height();
+      int width = rec.width();
+      popup->move(width / 2, height / 2);
+
+     	QLabel* lab = new QLabel("Test Session is about to Begin!!");
     	QPushButton* but = new QPushButton("Close");
 
     	connect(but, SIGNAL(released()), popup, SLOT(close()));
@@ -686,6 +742,14 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
 						 this->curr_cost, this->curr_valid, this->curr_complete);
 
   ROS_INFO("Console is done being updated!");
+
+  //4.5 Update the Label Colors
+  if(is_valid_path) vl->setStyleSheet("QLabel {color : green; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+  else vl->setStyleSheet("QLabel {color : red; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+ 
+  if(is_complete) cl->setStyleSheet("QLabel {color : green; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+  else cl->setStyleSheet("QLabel {color : red; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+
 
   if(is_aided){
 

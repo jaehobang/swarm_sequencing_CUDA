@@ -42,8 +42,6 @@ void publishC2R2(RETURN return_tmp)
 
 
   c2r.cost_of_path = return_tmp.cost_of_path;
-  if(return_struct.is_valid_path == 0)
-    c2r.cost_of_path = 100000;
   c2r.is_valid_path = return_tmp.is_valid_path;
   c2r.is_complete = return_tmp.is_complete;
   c2r.sequence_string_array = return_tmp.sequence_string_array;  
