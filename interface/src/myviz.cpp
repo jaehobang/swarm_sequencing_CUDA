@@ -44,7 +44,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   pb = new QProgressBar();
   pb->setTextVisible( false );
-  pb->setRange(0,20);
+  pb->setRange(0,17);
   pb->setValue(curr_map_number);
 
   render_panel_ = new rviz::RenderPanel();
@@ -557,7 +557,7 @@ void MyViz::nextWrapper()
 void MyViz::next()
 {
     //Reset everything for every component and update the map to the next one
-    tw->reset(180);
+    tw->reset(240);
     stw->reset();
     cw->reset();
     thw->reset();
@@ -572,7 +572,7 @@ void MyViz::next()
       for unaided, must tell them that test session is beginning 
       along with the ideal value with given times */
  
-		if(curr_map_number == 20){
+		if(curr_map_number == 17){
       QWidget* popup = new QWidget();
   	  popup->setAttribute(Qt::WA_DeleteOnClose);
    	  QRect rec = QApplication::desktop()->screenGeometry();

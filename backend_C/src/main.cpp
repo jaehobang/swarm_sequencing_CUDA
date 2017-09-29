@@ -300,7 +300,7 @@ void generateRandomMapSequence()
   map_sequence.push_back(4);
   
   //test maps
-  std::vector<int> basket = {5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19};
+  std::vector<int> basket = {5, 6, 7, 8, 10, 11, 12, 14, 16, 17, 18, 19}; //will take out 9, 13, 15
   std::srand(std::time(0));
   std::random_shuffle( basket.begin(), basket.end() );
 
