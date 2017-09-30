@@ -88,6 +88,8 @@ private:
   std::vector<QString> color_array = {"cyan", "purple", "gray", "brown", "green", "orange", "pink"};
   string name;
   uint8_t is_aided;
+  uint8_t received_C;
+  uint8_t input_error;
   QString curr_sequence;
   QString curr_switchtime;
   QString curr_cost;

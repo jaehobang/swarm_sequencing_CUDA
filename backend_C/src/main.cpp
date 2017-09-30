@@ -35,6 +35,15 @@ int errorCheckR2C(const custom_messages::R2C::ConstPtr& msg)
   }
 }
 
+void publishC2RError()
+{
+  custom_messages::C2R c2r;
+  c2r.error = 1;
+  ci_publisher.publish(c2r);
+  ros::spinOnce();
+  return;
+}
+
 
 void publishC2R2(RETURN return_tmp)
 {
@@ -45,7 +54,7 @@ void publishC2R2(RETURN return_tmp)
   c2r.is_valid_path = return_tmp.is_valid_path;
   c2r.is_complete = return_tmp.is_complete;
   c2r.sequence_string_array = return_tmp.sequence_string_array;  
-  c2r.map_number = map_sequence[MAP_NUM];
+  c2r.map_number = map_sequence[MAP_NUM - 1];
   ci1_publisher.publish(c2r);
 	ros::spinOnce();
  
@@ -70,7 +79,7 @@ void publishC2R()
   c2r.is_valid_path = return_struct.is_valid_path;
   c2r.is_complete = return_struct.is_complete;
   c2r.sequence_string_array = return_struct.sequence_string_array;  
-  c2r.map_number = map_sequence[MAP_NUM];
+  c2r.map_number = map_sequence[MAP_NUM - 1];
   ci_publisher.publish(c2r);
 	ros::spinOnce();
  
@@ -240,7 +249,11 @@ void publishMarkerArray()
 
 				for(int robot_j = 0; robot_j < N; robot_j++)
 				{
+          geometry_msgs::Point p_tmp;
+          int last_point_i = mk_arr.markers[robot_j].points.size() - 1;
+					p_tmp = mk_arr.markers[robot_j].points[last_point_i];
 					mk_arr.markers[robot_j].points.clear();
+          mk_arr.markers[robot_j].points.push_back(p_tmp);
 					mk_arr.markers[robot_j].id++;
 					int r,g,b;
 					//ROS_INFO("new sequence is %s", return_struct.sequence_string_array[behav_i]);
@@ -627,7 +640,7 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
   //4. publish that data
 
   //5. FIRST, I will just see if message sending and recieving works. 
-  
+  try{
   
   ROS_INFO("backend_C_node callback called...\n");
   //1. Error check the given message
@@ -658,20 +671,28 @@ void callBack(const custom_messages::R2C::ConstPtr& msg)
   return_struct = testmain(&local_parameter, is_aided, time_array, sequence_array, is_fixed);  
 
   ROS_INFO("After testmain parameter->N = %d, parameter->M = %d", parameter->N, parameter->M);
-  //4. Publish a C2R reply
-  publishC2R();
-  ROS_INFO("Finished publishing C2R");
-  ROS_INFO("AFter publishC2R, ->N = %d, ->M = %d", parameter->N, parameter->M);
   //5. Publish a visualization message
   publishMarkerArray();
 	ROS_INFO("Finished publishing MarkerArray");
   ROS_INFO("AFter publishMarkerArray, ->N = %d, ->M = %d", parameter->N, parameter->M);
+ 
+  //4. Publish a C2R reply
+  publishC2R();
+  ROS_INFO("Finished publishing C2R");
+  ROS_INFO("AFter publishC2R, ->N = %d, ->M = %d", parameter->N, parameter->M);
  
   //6. if unaided and map_num < 5, do testmain again and send c2r2
   if(is_aided == 0 && MAP_NUM <= 5){
     std::vector<int> seq_tmp;
     RETURN return_tmp = testmain(&local_parameter, 1, time_array, seq_tmp, is_fixed);
     publishC2R2(return_tmp);
+  }
+  
+  } //end of try statement
+  catch (int e)
+  {
+    cout << "An exception occued in backend_C. Please try again" << endl;
+    publishC2RError();
   }
   return;
 }

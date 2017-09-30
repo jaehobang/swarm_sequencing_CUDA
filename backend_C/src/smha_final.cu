@@ -548,7 +548,7 @@ void k_expandStates(node* d_expanded, node* d_open, PARAM* d_param, int dir, int
 	{
 		/* Only write to global memory once */
 		d_expanded[index].behaviorIndices[currSequenceIndex] = dir_index;
-		d_expanded[index].behaviorIdx = d_expanded[index].behaviorIdx * 10 + dir_index;
+		d_expanded[index].behaviorIdx = d_expanded[index].behaviorIdx * 10 + dir_index + 1;
 
 		/* Check swarm if reached destination */
 		d_expanded[index].reached_destination = d_target_reached(d_expanded[index], d_param);
@@ -714,8 +714,8 @@ void updateQueues(Queue* qps, node curr, PARAM* param, int queue_i)
 void expandStates(Queue* qps, PARAM* param, node* best_node_p, node* best_attempt, int queue_i)
 {
 	PARAM* d_param; /* device parameters */
-	cudaMalloc(&d_param, sizeof(PARAM));
-	cudaMemcpy(d_param, param, sizeof(PARAM), cudaMemcpyHostToDevice);
+	gpuErrchk( cudaMalloc(&d_param, sizeof(PARAM)) );
+	gpuErrchk( cudaMemcpy(d_param, param, sizeof(PARAM), cudaMemcpyHostToDevice) );
 
 	node *d_open; /* device open nodes */
 	node *d_expanded; /* device expanded nodes */
@@ -736,38 +736,48 @@ void expandStates(Queue* qps, PARAM* param, node* best_node_p, node* best_attemp
 	qps[queue_i].h_open.erase(qps[queue_i].h_open.begin(), qps[queue_i].h_open.begin() + real_copies);
 	/* TODO: Make sure this portion of code is correct!!!! */
 
-
-	//////////////
+  printf("Copying is done\n");
+//////////////
 	for (int queue_j = 0; queue_j < param->q_count; queue_j++)
 	{
 		if (queue_i == queue_j) continue;
-		std::vector<int> erase_indices;
+	  printf("queue_j h_open size is %d\n", qps[queue_j].h_open.size());
+   	std::vector<int> erase_indices;
 		for (int i = 0; i < real_copies; i++) {
 			for (int j = 0; j < qps[queue_j].h_open.size(); j++)
 			{
 				if (h_open_array[i].behaviorIdx == qps[queue_j].h_open[j].behaviorIdx) {
-					erase_indices.push_back(j);
+          printf("please.......j = %d i = %d behaviorIdx = %llu \n", j, i, h_open_array[i].behaviorIdx);
+					printf("sequence_numel = %d\n");
+          for(int k = 0; k < h_open_array[i].sequence_numel; k++)
+          {
+            printf("%s ", behavior_array[h_open_array[i].behaviorIndices[k]]);
+          }
+          printf("\n");
+          erase_indices.push_back(j);
 					break;
 				}
 			}
 		}
 
+    printf("selecting indices to erase is done!\n");
 		std::sort(erase_indices.begin(), erase_indices.end());
-
+    printf("sorting is done!\n");
+    printf("queue_j h_open size is %d\n", qps[queue_j].h_open.size());
 		for (int k = erase_indices.size() - 1; k >= 0; k--)
 		{
 			//printf("erase_indices[%d] is %d\n", k, erase_indices[k]);
-
+      printf("eraseing %d element in h_open\n", k);
 			qps[queue_j].h_open.erase(qps[queue_j].h_open.begin() + erase_indices[k]);
 		}
 		
 	}
-
+  printf("Erasing is done\n");
 
 	/* Copy necessary data to device memory */
-	cudaMalloc(&d_open, sizeof(node) * real_copies);
-	cudaMemcpy(d_open, h_open_array, sizeof(node) * real_copies, cudaMemcpyHostToDevice);
-	cudaMalloc(&d_expanded, sizeof(node) * real_copies * DIR);
+	gpuErrchk( cudaMalloc(&d_open, sizeof(node) * real_copies) );
+	gpuErrchk( cudaMemcpy(d_open, h_open_array, sizeof(node) * real_copies, cudaMemcpyHostToDevice) );
+	gpuErrchk( cudaMalloc(&d_expanded, sizeof(node) * real_copies * DIR) );
 
 
 	/* Allocate proper blocks and threads */
@@ -777,10 +787,13 @@ void expandStates(Queue* qps, PARAM* param, node* best_node_p, node* best_attemp
 	//const dim3 gridSize(dir, param->N, 1);
 
 	/* Run the GPU code */
+  printf("Going into k_expandStates!!\n");
 	k_expandStates << < gridSize, blockSize >> >(d_expanded, d_open, d_param, DIR, iteration, real_copies, queue_i);
+  gpuErrchk( cudaPeekAtLastError() );
 
+  printf("Returned from k_expandStates!\n");
 	/* Copy back from GPU to CPU */
-	cudaMemcpy(h_expanded, d_expanded, sizeof(node) * real_copies * DIR, cudaMemcpyDeviceToHost);
+	gpuErrchk( cudaMemcpy(h_expanded, d_expanded, sizeof(node) * real_copies * DIR, cudaMemcpyDeviceToHost) );
 
 	/* Update open list with expanded nodes and update best_node */
 	for (int ind = 0; ind < real_copies * DIR; ind++)
@@ -946,6 +959,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
 	const dim3 gridSize(1, 1, 1);
 	const dim3 blockSize(param->N, 1, 1);
 	k_noSMHA << <gridSize, blockSize >> >(d_poses, d_result, d_param, d_sequence_end_indices);
+  gpuErrchk( cudaPeekAtLastError() );
 
 	/* Copy back from GPU to CPU */
 	cudaMemcpy(h_poses, d_poses, sizeof(POS) * h_result_size, cudaMemcpyDeviceToHost);
@@ -1301,6 +1315,7 @@ void SAVE_launch(node result_node, RETURN* return_1, PARAM* param)
 	const dim3 gridSize(1, 1, 1);
 	const dim3 blockSize(param->N, 1, 1);
 	k_SAVE << <gridSize, blockSize >> >(d_poses, d_result, d_start, d_param);
+  gpuErrchk( cudaPeekAtLastError() );
 
 	/* Copy back from GPU to CPU */
 	cudaMemcpy(h_poses, d_poses, sizeof(POS) * h_result_size, cudaMemcpyDeviceToHost);

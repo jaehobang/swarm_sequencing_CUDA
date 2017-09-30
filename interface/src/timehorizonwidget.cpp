@@ -40,7 +40,7 @@ void TimeHorizonWidget::insertBar()
 {
     QProgressBar* bar = new QProgressBar();
     bar->setTextVisible( false );
-    bar->setRange(0, 500); //granularity of 0.1 seconds
+    bar->setRange(0, 600); //granularity of 0.1 seconds
     layout->addWidget( bar );
     progress_bars.push_back( bar );
 }

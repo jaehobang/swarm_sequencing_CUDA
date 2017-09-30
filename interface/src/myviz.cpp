@@ -11,6 +11,7 @@
 MyViz::MyViz( QWidget* parent) : QWidget( parent )
 {
   //Deal with Ros related stuff first
+  
   ROS_INFO("starting interface_node...\n");
   ic_publisher = n.advertise<custom_messages::R2C>("/hsi/R2C", 1000);
   id_publisher = n.advertise<custom_messages::R2D>("/hsi/R2D", 1000);
@@ -20,7 +21,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   this->name = "";
   this->is_aided = 0;
   this->curr_map_number = 0;
-
+  this->received_C = 1;
 
   tw = new TimerWidget(this);
  // sw = new SequenceWidget(this);
@@ -273,6 +274,7 @@ void MyViz::submit()
   	 r2d.sequence_string = "";
   	 id_publisher.publish(r2d);
   	 ros::spinOnce();
+     this->input_error = 1;
 		 return;
    }
 
@@ -309,7 +311,7 @@ void MyViz::submit()
 	   id_publisher.publish(r2d);
 	   ros::spinOnce();
 
-
+     this->input_error = 1;
      return;
    }   
 
@@ -334,6 +336,7 @@ void MyViz::submit()
   	 id_publisher.publish(r2d);
   	 ros::spinOnce();
 
+     this->input_error = 1;
    	 return;
 
    }
@@ -353,7 +356,7 @@ void MyViz::submit()
   	 r2d.sequence_string = "";
   	 id_publisher.publish(r2d);
   	 ros::spinOnce();
-
+     this->input_error = 1;
     return;
 
    }
@@ -376,7 +379,7 @@ void MyViz::submit()
  	 	 r2d.sequence_string = "";
  	 	 id_publisher.publish(r2d);
  	 	 ros::spinOnce();
-
+     this->input_error = 1;
 
      return;
    }
@@ -457,6 +460,12 @@ void MyViz::generate()
 {  
    this->submit(); //Run this in case sequence changed after user pressed submit
  
+   if(this->input_error)
+   {
+     this->input_error = 0;
+     return;
+   }
+
    //1. Collecting all the data
    std::vector<int> sequence_arr;
    std::vector<float> switchtime_arr;
@@ -473,6 +482,7 @@ void MyViz::generate()
    iter = this->iterationConvert(iteration);
    //4. if valid, create and publish r2c
    ROS_INFO("Inside function generate()...sending R2C message\n");
+   if(this->received_C == 0) return; //do not publish message if we did not hear back from backend_C
    custom_messages::R2C r2c;
    r2c.stamp = ros::Time::now();
    r2c.is_aided = this->is_aided; //0 is unaided
@@ -496,6 +506,7 @@ void MyViz::generate()
    r2c.sequence_int_array = sequence_arr; 
    ic_publisher.publish(r2c);
    ros::spinOnce();
+   this->received_C = 0;
 
 
    //5. create and publish r2d message
@@ -713,6 +724,14 @@ void MyViz::callBack2(const custom_messages::C2R::ConstPtr& msg)
 void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
 {
 
+
+  if(msg->error == 1)
+  {
+    QString str = QString("A rare bug occurred! Please try again");
+    generateErrorPopup(str);
+    return;
+  }
+
   ROS_INFO("Callback function inside interface called!\n");
   //1. Parse and Convert
   std::vector<string> sequence_string_array = msg->sequence_string_array;
@@ -750,6 +769,7 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   if(is_complete) cl->setStyleSheet("QLabel {color : green; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
   else cl->setStyleSheet("QLabel {color : red; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
 
+  this->received_C = 1;
 
   if(is_aided){
 
@@ -797,7 +817,7 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   custom_messages::R2D r2d;
   r2d.stamp = ros::Time::now();
   r2d.id = this->name;
-  r2d.map_number = std::to_string(msg->map_number - 1);
+  r2d.map_number = std::to_string(msg->map_number);
   r2d.iteration = (cw->getInfo()).toStdString();
   r2d.event_type = 1; //trajectory information
   r2d.description = "Sequence Generated";
