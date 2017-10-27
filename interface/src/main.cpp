@@ -1,8 +1,13 @@
 #include <QApplication>
+#include <QtWidgets>
 #include <ros/ros.h>
 #include "myviz.h"
 #include "popupwidget.h"
 #include "customapplication.h"
+#include <string>
+
+
+
 
 int main(int argc, char **argv)
 {
@@ -31,9 +36,15 @@ int main(int argc, char **argv)
 
   ros::NodeHandle n;
 
+  QApplication app( argc, argv );
 
-  MyApplication app(argc, argv);
-  app.setNodeHandler(n);
+  MyViz* myviz = new MyViz();
+
+  myviz->setNodeHandle(n);
+
   app.exec();
+
+  delete myviz;
+
 
 }

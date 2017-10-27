@@ -115,7 +115,15 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   manager_->load( config );
 
-  
+  printf("returning from init\n");
+
+  this->ip = new PopupWidget();
+  printf("Finished initializing popup...\n");
+  this->ip->resize(200,200);
+  this->ip->show();
+  printf("Finished showing...\n");
+
+  connect(this->ip, SIGNAL(widgetClosed()), this, SLOT(createHSIWidget()));
 /*
   trajectory_ = manager_->createDisplay( "rviz/MarkerArray", "Marker Array", true );
   ROS_ASSERT( trajectory_ != NULL );
@@ -157,7 +165,19 @@ MyViz::~MyViz()
   delete manager_;
 }
 
-void MyViz::setNameAndAided(string n, uint8_t is_aided)
+
+void MyViz::createHSIWidget()
+{
+  string name = this->ip->getName().toStdString();
+  int isAided = this->ip->getIsAided();
+  this->setNameAndAided(name, isAided);
+  this->resize(1400, 600);
+  this->show();
+  return;
+}
+
+
+void MyViz::setNameAndAided(string n, int is_aided)
 {
   this->name = n;
   this->is_aided = is_aided;
@@ -361,6 +381,26 @@ void MyViz::submit()
 
    }
 
+   if(is_aided == 2 && sequence_arr.size() != 0){
+     QString lab_text = QString("ERROR\nMust not fill up Sequence column!!");
+     this->generateErrorPopup(lab_text);
+
+     custom_messages::R2D r2d;
+     r2d.stamp = ros::Time::now();
+     r2d.id = this->name;
+     r2d.map_number = "";
+     r2d.iteration = "";
+     r2d.event_type = EVENT_BUTTON;
+     r2d.description = "Submit Clicked! Behaviors must not be filled";
+     r2d.switchtime_string = "";
+     r2d.sequence_string = "";
+     id_publisher.publish(r2d);
+     ros::spinOnce();
+     this->input_error = 1;
+    return;
+
+   }
+
 
    if(switchtime_arr.size() == 0)
    {
@@ -482,7 +522,7 @@ void MyViz::generate()
    iter = this->iterationConvert(iteration);
    //4. if valid, create and publish r2c
    ROS_INFO("Inside function generate()...sending R2C message\n");
-   if(this->received_C == 0) return; //do not publish message if we did not hear back from backend_C
+   //if(this->received_C == 0) return; //TODO: enable this function again later
    custom_messages::R2C r2c;
    r2c.stamp = ros::Time::now();
    r2c.is_aided = this->is_aided; //0 is unaided
@@ -524,6 +564,9 @@ void MyViz::generate()
    ros::spinOnce();
 
    ROS_INFO("Done with generate()");
+   QApplication::setOverrideCursor(Qt::WaitCursor);
+   
+   
    return;
 }
 
@@ -723,7 +766,7 @@ void MyViz::callBack2(const custom_messages::C2R::ConstPtr& msg)
 
 void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
 {
-
+  QApplication::restoreOverrideCursor();
 
   if(msg->error == 1)
   {
@@ -771,7 +814,8 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
 
   this->received_C = 1;
 
-  if(is_aided){
+  //Update time horizon and sequence table and console widget
+  if(is_aided == 1 || is_aided == 2){
 
     std::vector<float> switchtime_arr;
     std::vector<int> sequence_arr;

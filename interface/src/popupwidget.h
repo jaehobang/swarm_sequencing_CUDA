@@ -9,7 +9,7 @@ class PopupWidget : public QWidget
 
 public:
     PopupWidget(QWidget *parent = 0); //3 minutes per map
-    uint8_t getIsAided();
+    int getIsAided();
     QString getName();
 
 
@@ -19,14 +19,16 @@ Q_SIGNALS:
 private Q_SLOTS:
     void setIsAided();
     void setIsUnaided();
+    void setIsOnlyAided();
 
 private:
-		QLabel* name_;
+	QLabel* name_;
     QLineEdit* name;
     QPushButton* aid_but;
     QPushButton* unaid_but;
+    QPushButton* onlyaid_but;
     QString name_val;
-    uint8_t isAided;
+    int isAided;
 
 };
 

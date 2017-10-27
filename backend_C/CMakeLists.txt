@@ -3,7 +3,8 @@ cmake_minimum_required(VERSION 2.8.3)
 PROJECT (backend_C)
 
 FIND_PACKAGE(CUDA REQUIRED)
-
+include_directories(/usr/local/cuda/include)
+add_definitions(-DUSE_GPU)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -18,10 +19,11 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 
+SET(CUDA_NVCC_FLAGS "-std=c++11;-arch=compute_61;-code=sm_61;-ltbb;-lrt;-lcudart;-lcudadevrt" CACHE STRING "nvcc flags" FORCE)
 
-SET(CUDA_NVCC_FLAGS "-std=c++11 -arch=sm_35" CACHE STRING "nvcc flags" FORCE)
+SET (CUDA_VERBOSE_BUILD ON)
 
-SET (CUDA_VERBOSE_BUILD ON CACHE BOOL "nvcc verbose" FORCE)
+link_directories(${CUDA_TOOLKIT_ROOT_DIR}/lib64)
 
 SET(LIB_TYPE STATIC) 
 

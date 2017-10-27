@@ -34,9 +34,9 @@
 
 using namespace std;
 
-char *behavior_array[DIR] = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
+char *behavior_array[DIR] = { "rendezvous", "antirendezvous", "flock_east", "flock_north", "flock_west", "flock_south", "line_x", "line_y" };
 
-std::vector<string> behavior_array_display = {"Rendezvous", "Flocking", "Flock East", "Flock North", "Flock West", "Flock South", "Antirendezvous"};
+std::vector<string> behavior_array_display = {"Rendezvous", "Antirendezvous", "Flock East", "Flock North", "Flock West", "Flock South", "Line X", "Line Y"};
 
 /* Error Checking..... */
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -76,6 +76,105 @@ void d_robot_model_i(node* current, int i, float u_v, float u_w, float dt)
 	current->robot_pos[i][2] = d_wrapToPi(current->robot_pos[i][2] + u_w*dt);
 	return;
 }
+
+
+__device__
+void d_formation_control(node* future, node* current, int i, float formation[][2], float dt)
+{
+	float connectivity_radius = 20.0f;
+	float gain_v = 4.0f;
+	float gain_w = 4.0f;
+	float position_i[2], position_j[2];
+	float heading_i, heading_j;
+	float v[2], d[2], dv[2], b[2];
+	float w, n, dtheta;
+	float norm_d;
+	float u_v, u_w;
+
+	int N = current->N;
+	position_i[0] = current->robot_pos[i][0];
+	position_i[1] = current->robot_pos[i][1];
+	heading_i = current->robot_pos[i][2];
+
+	v[0] = 0;
+	v[1] = 0;
+	w = 0;
+	n = 0;
+
+	for (int j = 0; j < N; j++)
+	{
+		if(i == j) continue;
+		position_j[0] = current->robot_pos[j][0];
+		position_j[1] = current->robot_pos[j][1];
+		heading_j = current->robot_pos[j][2];
+
+		d[0] = position_j[0] - position_i[0];
+		d[1] = position_j[1] - position_i[1];
+		norm_d = sqrtf(powf(d[0], 2) + powf(d[1], 2));
+		dtheta = 0;
+
+		if (norm_d < connectivity_radius)
+		{
+			dv[0] = d[0] - (formation[j][0] - formation[i][0]);
+			dv[1] = d[1] - (formation[j][1] - formation[i][1]);
+			n += 1;
+		}
+		else{
+			dv[0] = 0;
+			dv[1] = 0;
+		}
+		v[0] += dv[0];
+		v[1] += dv[1];
+
+	}
+	v[0] /= (n + 1);
+	v[1] /= (n + 1);
+
+	float tmp = atan2f(v[1], v[0]);
+	tmp += 2 * CUDART_PI_F * (tmp == -CUDART_PI_F);
+	dtheta = tmp - heading_i;
+
+	tmp = atan2f(sinf(dtheta), cosf(dtheta));
+	tmp += 2 * CUDART_PI_F * (tmp == -CUDART_PI_F);
+	w = w + tmp;
+
+	b[0] = cosf(heading_i);
+	b[1] = sinf(heading_i);
+	u_v = gain_v * (v[0] * b[0] + v[1] * b[1]);
+	u_w = gain_w * w;
+
+	d_robot_model_i(future, i, u_v, u_w, dt);
+
+}
+
+
+
+__device__
+void d_line_x(node* future, node *current, int i, float dt)
+{
+	float formation[ROBOT_MAX][2];
+	for(int i = 0; i < ROBOT_MAX; i++)
+	{
+		formation[i][0] = 2*(i + 1);
+		formation[i][1] = 0;
+	}
+
+	d_formation_control(future, current, i, formation, dt);
+}
+
+__device__
+void d_line_y(node* future, node *current, int i, float dt)
+{
+	float formation[ROBOT_MAX][2];
+	for(int i = 0; i < ROBOT_MAX; i++)
+	{
+		formation[i][0] = 0;
+		formation[i][1] = 2 * (i + 1);
+	} 
+
+	d_formation_control(future, current, i, formation, dt);
+}
+
 
 
 __device__
@@ -356,8 +455,8 @@ void d_move_stop(node* future, node* current, int i, float dt)
 
 
 typedef void(*op_func) (node*, node*, int, float);
-__device__ op_func func[DIR] = { d_rendezvous, d_flocking, d_flock_east, d_flock_north, d_flock_west, d_flock_south, d_antirendezvous };
-__device__ char *d_behavior_array[DIR] = { "rendezvous", "flocking", "flock_east", "flock_north", "flock_west", "flock_south", "antirendezvous" };
+__device__ op_func func[DIR] = { d_rendezvous, d_antirendezvous, d_flock_east, d_flock_north, d_flock_west, d_flock_south, d_line_x, d_line_y };
+__device__ char *d_behavior_array[DIR] = { "rendezvous", "antirendezvous", "flock_east", "flock_north", "flock_west", "flock_south", "line_x", "line_y" };
 
 
 /* returns@ 0 is target is not reached; else 1 */
@@ -722,58 +821,46 @@ void expandStates(Queue* qps, PARAM* param, node* best_node_p, node* best_attemp
 
 					  /* Dequeue from h_open */
 	int iteration = qps[queue_i].iteration;
-	printf("Inside ExpandStates....iteration is %d\n", iteration);
+	//printf("Inside ExpandStates....iteration is %d\n", iteration);
 
 	int h_open_size = qps[queue_i].h_open.size();
 	int real_copies = (h_open_size > ARRAY_SIZE) ? ARRAY_SIZE : h_open_size;
 	node* h_open_array = new node[real_copies]; /* temporary data used for cudaMemcpy of h_open */
 	node* h_expanded = new node[real_copies * DIR]; /* data used for retrieving expanded nodes data; Also used for backtracking */
 
-	printf("For %d, real_copies %d\n", queue_i, real_copies);
+	//printf("For %d, real_copies %d\n", queue_i, real_copies);
 
 	std::copy(qps[queue_i].h_open.begin(), qps[queue_i].h_open.begin() + real_copies, h_open_array);
 	/* Erase the same nodes from all queues */
 	qps[queue_i].h_open.erase(qps[queue_i].h_open.begin(), qps[queue_i].h_open.begin() + real_copies);
 	/* TODO: Make sure this portion of code is correct!!!! */
 
-  printf("Copying is done\n");
+  //printf("Copying is done\n");
 //////////////
 	for (int queue_j = 0; queue_j < param->q_count; queue_j++)
 	{
 		if (queue_i == queue_j) continue;
-	  printf("queue_j h_open size is %d\n", qps[queue_j].h_open.size());
+	  //printf("queue_j h_open size is %d\n", qps[queue_j].h_open.size());
    	std::vector<int> erase_indices;
 		for (int i = 0; i < real_copies; i++) {
 			for (int j = 0; j < qps[queue_j].h_open.size(); j++)
 			{
 				if (h_open_array[i].behaviorIdx == qps[queue_j].h_open[j].behaviorIdx) {
-          printf("please.......j = %d i = %d behaviorIdx = %llu \n", j, i, h_open_array[i].behaviorIdx);
-					printf("sequence_numel = %d\n");
-          for(int k = 0; k < h_open_array[i].sequence_numel; k++)
-          {
-            printf("%s ", behavior_array[h_open_array[i].behaviorIndices[k]]);
-          }
-          printf("\n");
-          erase_indices.push_back(j);
+          		
+          			erase_indices.push_back(j);
 					break;
 				}
 			}
 		}
 
-    printf("selecting indices to erase is done!\n");
-		std::sort(erase_indices.begin(), erase_indices.end());
-    printf("sorting is done!\n");
-    printf("queue_j h_open size is %d\n", qps[queue_j].h_open.size());
-		for (int k = erase_indices.size() - 1; k >= 0; k--)
+    	std::sort(erase_indices.begin(), erase_indices.end());
+    	for (int k = erase_indices.size() - 1; k >= 0; k--)
 		{
-			//printf("erase_indices[%d] is %d\n", k, erase_indices[k]);
-      printf("eraseing %d element in h_open\n", k);
 			qps[queue_j].h_open.erase(qps[queue_j].h_open.begin() + erase_indices[k]);
 		}
 		
 	}
-  printf("Erasing is done\n");
-
+  
 	/* Copy necessary data to device memory */
 	gpuErrchk( cudaMalloc(&d_open, sizeof(node) * real_copies) );
 	gpuErrchk( cudaMemcpy(d_open, h_open_array, sizeof(node) * real_copies, cudaMemcpyHostToDevice) );
@@ -787,12 +874,10 @@ void expandStates(Queue* qps, PARAM* param, node* best_node_p, node* best_attemp
 	//const dim3 gridSize(dir, param->N, 1);
 
 	/* Run the GPU code */
-  printf("Going into k_expandStates!!\n");
-	k_expandStates << < gridSize, blockSize >> >(d_expanded, d_open, d_param, DIR, iteration, real_copies, queue_i);
+  	k_expandStates << < gridSize, blockSize >> >(d_expanded, d_open, d_param, DIR, iteration, real_copies, queue_i);
   gpuErrchk( cudaPeekAtLastError() );
 
-  printf("Returned from k_expandStates!\n");
-	/* Copy back from GPU to CPU */
+  	/* Copy back from GPU to CPU */
 	gpuErrchk( cudaMemcpy(h_expanded, d_expanded, sizeof(node) * real_copies * DIR, cudaMemcpyDeviceToHost) );
 
 	/* Update open list with expanded nodes and update best_node */
@@ -813,22 +898,22 @@ void expandStates(Queue* qps, PARAM* param, node* best_node_p, node* best_attemp
 		else if (h_expanded[ind].isEmpty == 0 && h_expanded[ind].reached_destination == 1
 			&& h_expanded[ind].G < best_node_p->G) {
 			memcpy(best_node_p, &h_expanded[ind], sizeof(node));
-			printf("UPDATING BEST NODE!! cost is %f, sequence_numel is %d\n", best_node_p->G, best_node_p->sequence_numel);
-			printf("printing sequence...\n");
+			//printf("UPDATING BEST NODE!! cost is %f, sequence_numel is %d\n", best_node_p->G, best_node_p->sequence_numel);
+			//printf("printing sequence...\n");
 			for (int i = 0; i < best_node_p->sequence_numel; i++)
 			{
 				int index = best_node_p->behaviorIndices[i];
 				//printf("hello world????\n");
-				printf("%s, ", behavior_array[index]);
+			//	printf("%s, ", behavior_array[index]);
 				//printf("%d ", index);
 			}
-			printf("\n");
+			//printf("\n");
 		}
 	}
 
 	for (int i = 0; i < param->q_count; i++)
 	{
-		printf("Queue%d size is %d\n", i, qps[i].h_open.size());
+		//printf("Queue%d size is %d\n", i, qps[i].h_open.size());
 	}
 
 
@@ -923,7 +1008,7 @@ void noSMHAstar(PARAM* param, RETURN* return_1, node* result_node)
 	printf("checking result node also.... sequence_numel is %d\n", result_node->sequence_numel);
 	for(int i = 0; i < param->sequence_array_count; i++)
 	{
-		printf("%s ", behavior_array[result_node->behaviorIndices[i]]);
+		printf("%s %d", behavior_array[result_node->behaviorIndices[i]], result_node->behaviorIndices[i]);
 	}
 	printf("\n");
 
@@ -1043,7 +1128,7 @@ node SMHAstar(PARAM* param, node h_start)
 		clock_t end = clock();
 		float time_elapsed = float(end - start);
 
-		if (time_elapsed > 20000000) //10 sec
+		if (time_elapsed > 120000000) //50 sec
 		{
 			printf("Exceeded time limit of %f (ms)", time_elapsed);
 			if(result.isEmpty && best_node_p->isEmpty) 
@@ -1591,7 +1676,13 @@ void initialize_result(node* result_node, PARAM* param)
 RETURN testmain(PARAM* param, int isAided, std::vector<float> time_array, std::vector<int> sequence_array, std::vector<uint8_t> isFixed)
 {
 	printf("starting\n");
-	RETURN return_1;
+
+	clock_t start;
+    double duration;
+
+    start = std::clock();
+
+    RETURN return_1;
 
 	initialize_parameters(param, time_array, sequence_array, isFixed);
 
@@ -1604,6 +1695,11 @@ RETURN testmain(PARAM* param, int isAided, std::vector<float> time_array, std::v
 		//printf("after returning from noSMHAstar function....\n");
 		//printf("return_1 cost_of_path = %f\n", return_1.cost_of_path);
 	}
+
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+
+    std::cout<<"Elapsed: "<< duration << " Seconds" << '\n';
+
 
 	return return_1;
 }

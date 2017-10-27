@@ -93,7 +93,7 @@ void SequenceTimeWidget::generateBehaviorList()
 {
 
     behavior_list = new QTableWidget(this);
-    behavior_list->setRowCount(7);
+    behavior_list->setRowCount(8);
     behavior_list->setColumnCount(2);
 
     QStringList m_TableHeader;
@@ -108,12 +108,14 @@ void SequenceTimeWidget::generateBehaviorList()
     behavior_list->setStyleSheet("QTableView {selection-background-color: blue;}");
 
     behavior_list->setItem(0, 0, new QTableWidgetItem("Rendezvous"));
-    behavior_list->setItem(1, 0, new QTableWidgetItem("Flocking"));
+    behavior_list->setItem(1, 0, new QTableWidgetItem("Antirendezvous"));
     behavior_list->setItem(2, 0, new QTableWidgetItem("Flock East"));
     behavior_list->setItem(3, 0, new QTableWidgetItem("Flock North"));
     behavior_list->setItem(4, 0, new QTableWidgetItem("Flock West"));
     behavior_list->setItem(5, 0, new QTableWidgetItem("Flock South"));
-    behavior_list->setItem(6, 0, new QTableWidgetItem("Antirendezvous"));
+    behavior_list->setItem(6, 0, new QTableWidgetItem("Line X"));
+    behavior_list->setItem(7, 0, new QTableWidgetItem("Line Y"));
+    
 
 
     for(int i = 0; i < (int) behavior_color_array.size(); i++)

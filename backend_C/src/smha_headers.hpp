@@ -1,6 +1,6 @@
 #include <vector>
 
-const int DIR = 7; //directions I can take {rendezvous, flocking, north, south, west, east, no_move}
+const int DIR = 8; //directions I can take {rendezvous, flocking, north, south, west, east, no_move}
 const int ARRAY_SIZE = 1024;
 const int ROBOT_MAX = 10;
 const int OBS_MAX = 10;

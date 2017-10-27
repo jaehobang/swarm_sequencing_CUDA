@@ -93,7 +93,7 @@ void getRGB(int* r, int* g, int* b, string behavior)
 			*r=0;
 			*g=255;
 			*b=255;
-	} else if(behavior == "Flocking"){ //flocking - purple
+	} else if(behavior == "Antirendezvous"){ //flocking - purple
 			*r=160;
 			*g=32;
 			*b=240;
@@ -113,11 +113,15 @@ void getRGB(int* r, int* g, int* b, string behavior)
 			*r=255;
 			*g=165;
 			*b=0;
-	} else if(behavior == "Antirendezvous"){ //antirendezvous - pink
+	} else if(behavior == "Line X"){ //line_x - pink
 			*r=255;
 			*g=20;
 			*b=147;
-	}
+	} else if(behavior == "Line Y"){ //line_y - yellow
+      *r=255;
+      *g=255;
+      *b=0;
+  }
 	return;
 }
 

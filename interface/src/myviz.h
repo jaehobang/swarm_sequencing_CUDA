@@ -45,7 +45,7 @@ public:
   void callBack(const custom_messages::C2R::ConstPtr& msg);
   void callBack2(const custom_messages::C2R::ConstPtr& msg);
   void setNodeHandle(ros::NodeHandle nn);
-  void setNameAndAided(string n, uint8_t is_aided);
+  void setNameAndAided(string n, int is_aided);
 
 private Q_SLOTS:
   void generate();
@@ -54,6 +54,7 @@ private Q_SLOTS:
   void timerDone();
   void checkNext();
   void nextWrapper();
+  void createHSIWidget();
 
 private:
   TimerWidget* tw;
@@ -68,6 +69,7 @@ private:
 	SequenceTimeWidget* stw;
   QWidget* np;
   QWidget* pw;
+  PopupWidget* ip;
   QLabel* vl; //valid label
   QLabel* cl; //complete label
   QLabel* tl;
@@ -83,11 +85,11 @@ private:
   ros::Subscriber ic_subscriber;
   ros::Subscriber ic2_subscriber;
 
-  std::vector<string> behavior_array = { "Rendezvous", "Flocking", "Flock East", "Flock North", "Flock West", "Flock South", "Antirendezvous" };
-  std::vector<string> behavior_array_short = {"r", "i", "e", "n", "w", "s", "a"};
-  std::vector<QString> color_array = {"cyan", "purple", "gray", "brown", "green", "orange", "pink"};
+  std::vector<string> behavior_array = { "Rendezvous", "Antirendezvous", "Flock East", "Flock North", "Flock West", "Flock South", "Line X", "Line Y" };
+  std::vector<string> behavior_array_short = {"r", "a", "e", "n", "w", "s", "x", "y"};
+  std::vector<QString> color_array = {"cyan", "purple", "gray", "brown", "green", "orange", "pink", "yellow"};
   string name;
-  uint8_t is_aided;
+  int is_aided;
   uint8_t received_C;
   uint8_t input_error;
   QString curr_sequence;
