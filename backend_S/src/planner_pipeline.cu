@@ -70,7 +70,8 @@ void plannerStageB1(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, 
 }
 
 __global__
-void plannerStageB2(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, DurationSequence * durations, MapLimits * mapLimits)
+void plannerStageB2(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, 
+  DurationSequence * durations, MapLimits * mapLimits)
 {
   int n = blockIdx.x;
   int b = blockIdx.y;
@@ -91,7 +92,8 @@ void plannerStageB2(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, 
 }
 
 __global__
-void plannerStageC1(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, DurationSequence * durations, Obstacle * obstacles)
+void plannerStageC1(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, 
+  DurationSequence * durations, Obstacle * obstacles)
 {
   int n = blockIdx.x;
   int b = blockIdx.y;

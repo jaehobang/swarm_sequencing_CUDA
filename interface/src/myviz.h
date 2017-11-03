@@ -69,9 +69,11 @@ private:
 	SequenceTimeWidget* stw;
   QWidget* np;
   QWidget* pw;
+  QWidget* pp;
   PopupWidget* ip;
   QLabel* vl; //valid label
   QLabel* cl; //complete label
+  QLabel* ol; //optimal label
   QLabel* tl;
   QProgressBar* pb;
 
@@ -106,6 +108,7 @@ private:
   std::vector<float> switchtimeInputConvert(QString switchtime);
   int iterationConvert(QString iteration);
   void generateErrorPopup(QString str);
+  void generateProcessPopup();
 };
 
 // END_TUTORIAL

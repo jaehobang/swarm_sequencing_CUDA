@@ -70,6 +70,7 @@ typedef struct RETURN
   float cost_of_path;
   uint8_t is_valid_path;
   uint8_t is_complete;
+  uint8_t is_optimal;
   std::vector<std::string> sequence_string_array;
 } RETURN;
 

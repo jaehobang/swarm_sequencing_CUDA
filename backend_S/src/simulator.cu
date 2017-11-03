@@ -25,11 +25,13 @@
 #include "simulator.cuh"
 
 std::vector<SwarmState>
-Simulator::simulate(float* costp)
+Simulator::simulate(float* costp, Node* best_node)
 {
   const BehaviorSequence & behaviors = parameters.behaviors;
   const DurationSequence & durations = parameters.durations;
   assert(durations.length == behaviors.length);
+
+  
 
   int totalDuration = std::accumulate(&(durations.times[0]), 
     &(durations.times[durations.length]), 0);
@@ -37,9 +39,25 @@ Simulator::simulate(float* costp)
   BehaviorManager * pBehaviorManager = thrust::raw_pointer_cast(behaviorManager.data());
   SwarmState * pStates = thrust::raw_pointer_cast(states.data());
   
+
+  dParameters.assign(1, planner_parameters);
+  dObstacles = obstacles;
+  Obstacle * pObstacles = thrust::raw_pointer_cast(dObstacles.data());
+  PlannerParameters * pParameters = thrust::raw_pointer_cast(dParameters.data());
+  MapLimits * pMapLimits = reinterpret_cast<MapLimits *>(
+    reinterpret_cast<char *>(pParameters) + offsetof(PlannerParameters, mapLimits));
+  Target * pTarget = reinterpret_cast<Target *>(
+    reinterpret_cast<char *>(pParameters) + offsetof(PlannerParameters, target));
+
+
   float* dCost;
   cudaMalloc(&dCost, sizeof(float));
   cudaMemcpy(dCost, costp, sizeof(float), cudaMemcpyHostToDevice);
+
+  Node* nodeIn;
+  cudaMalloc(&nodeIn, sizeof(Node));
+  cudaMemcpy(nodeIn, best_node, sizeof(Node), cudaMemcpyHostToDevice);
+
   int t = 0;
   for (int d=0; d<durations.length; d++) {
     int behaviorId = parameters.behaviors.ids[d];
@@ -50,14 +68,22 @@ Simulator::simulate(float* costp)
       SwarmState * pStateOut = pStateIn + 1;
       simulatorStage0<<<1, ROBOTS>>>(pStateIn, pBehaviorManager, behaviorId);
       simulatorStage1<<<ROBOTS, ROBOTS>>>(pBehaviorManager, behaviorId);
-      simulatorStage2<<<1, ROBOTS>>>(pBehaviorManager, behaviorId, pStateOut);
+      simulatorStage2<<<1, ROBOTS>>>(nodeIn, pBehaviorManager, behaviorId, pStateOut, pMapLimits);
+      dim3 stage2_1Grid(obstacles.size(), 1, 1);
+      simulatorStage2_1<<<stage2_1Grid, ROBOTS>>>(nodeIn, pBehaviorManager, behaviorId, pStateOut, pObstacles);
       //std::copy_n(states[t+1].x, ROBOTS , std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
       //std::copy_n(states[t+1].y, ROBOTS , std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
       //std::copy_n(states[t+1].theta, ROBOTS , std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
     }
     simulatorStage3<<<1,ROBOTS>>>(pBehaviorManager, behaviorId, dCost);
   }
+  float robotRadius = planner_parameters.robotRadius;
+  int behaviorId = parameters.behaviors.ids[durations.length - 1];
+  simulatorStage4<<<1,ROBOTS>>>(nodeIn, pBehaviorManager, pTarget, behaviorId, robotRadius);
+
   cudaMemcpy(costp, dCost, sizeof(float), cudaMemcpyDeviceToHost);
+  cudaMemcpy(best_node, nodeIn, sizeof(Node), cudaMemcpyDeviceToHost);
+  
   std::vector<SwarmState> trajectory(states.size());
   thrust::copy(states.begin(), states.end(), trajectory.begin());
   return trajectory;

@@ -59,7 +59,7 @@ bool robotIntersectsObstacle(BehaviorContext * ctx, Obstacle * obs, int i)
 {
   float dx = obs->x - ctx->poses.x[i];
   float dy = obs->y - ctx->poses.y[i];
-  float r = obs->radius + ROBOT_RADIUS;
+  float r = obs->radius + ROBOT_RADIUS; //will give some offset....
   return (dx*dx + dy*dy < r*r);
 }
 

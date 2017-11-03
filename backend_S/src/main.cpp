@@ -78,6 +78,9 @@ void publishC2R()
     c2r.cost_of_path = 100000;
   c2r.is_valid_path = return_struct.is_valid_path;
   c2r.is_complete = return_struct.is_complete;
+  c2r.is_optimal = return_struct.is_optimal;
+  printf("Inside publishC2R in main.cpp complete optimal %d %d\n", c2r.is_complete, c2r.is_optimal);
+  printf("complete optimal %d %d\n", return_struct.is_complete, return_struct.is_optimal);
   c2r.sequence_string_array = return_struct.sequence_string_array;  
   c2r.map_number = map_sequence[MAP_NUM - 1];
   ci_publisher.publish(c2r);
@@ -86,39 +89,44 @@ void publishC2R()
 	return;
 }
 
+
 void getRGB(int* r, int* g, int* b, string behavior)
 { 
 // ROS_INFO("Inside getRGB, behavior is %s", behavior.c_str());
-	if(behavior == "Rendezvous"){//rendezvous - cyan
-			*r=0;
-			*g=255;
-			*b=255;
-	} else if(behavior == "Flocking"){ //flocking - purple
-			*r=160;
-			*g=32;
-			*b=240;
-	}	else if(behavior == "Flock East"){ //flock_east - gray
-			*r=128;
-			*g=128;
-			*b=128;
-	}	else if(behavior == "Flock North"){ //floack_north - brown
-			*r=165;
-			*g=42;
-			*b=42;
-	}	else if(behavior ==  "Flock West"){ //flock_west - darkgreen
-			*r=0;
-			*g=100;
-			*b=0;
-	}	else if(behavior ==  "Flock South"){ //flock_south - orange
-			*r=255;
-			*g=165;
-			*b=0;
-	} else if(behavior == "Antirendezvous"){ //antirendezvous - pink
-			*r=255;
-			*g=20;
-			*b=147;
-	}
-	return;
+  if(behavior == "Rendezvous"){//rendezvous - cyan
+      *r=0;
+      *g=255;
+      *b=255;
+  } else if(behavior == "Antirendezvous"){ //flocking - purple
+      *r=160;
+      *g=32;
+      *b=240;
+  } else if(behavior == "Flock East"){ //flock_east - gray
+      *r=128;
+      *g=128;
+      *b=128;
+  } else if(behavior == "Flock North"){ //floack_north - brown
+      *r=165;
+      *g=42;
+      *b=42;
+  } else if(behavior ==  "Flock West"){ //flock_west - darkgreen
+      *r=0;
+      *g=100;
+      *b=0;
+  } else if(behavior ==  "Flock South"){ //flock_south - orange
+      *r=255;
+      *g=165;
+      *b=0;
+  } else if(behavior == "Line X"){ //line_x - pink
+      *r=255;
+      *g=182;
+      *b=193;
+  } else if(behavior == "Line Y"){ //line_y - yellow
+      *r=255;
+      *g=255;
+      *b=0;
+  }
+  return;
 }
 
 void deleteMarkerArray()

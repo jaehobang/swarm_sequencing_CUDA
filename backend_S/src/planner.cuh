@@ -37,7 +37,7 @@ class Planner {
   thrust::host_vector<Obstacle> obstacles;
   
 private:
-  void executePipeline();
+  Node executePipeline();
 
   thrust::device_vector<PlannerParameters> dParameters;
   thrust::device_vector<Obstacle> dObstacles;
@@ -47,6 +47,7 @@ private:
   thrust::device_vector<float> priorities;
   thrust::device_vector<Node> nodes;  
   thrust::device_vector<Node> best;
+  thrust::device_vector<Node> best_attempt;
 };
 
 #endif // PLANNER_H

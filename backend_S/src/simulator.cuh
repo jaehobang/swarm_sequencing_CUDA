@@ -27,19 +27,27 @@
 
 class Simulator {
  public:
-  Simulator(const SimulatorParameters & parameters_)
-  : parameters(parameters_)
-  , behaviorManager(1)
+  Simulator(const SimulatorParameters & parameters_,
+  	const PlannerParameters & planner_parameters_, 
+  	const std::vector<Obstacle> & obstacles_)
+  : parameters(parameters_), obstacles(obstacles_), 
+    planner_parameters(planner_parameters_), 
+    behaviorManager(1)
   {}
  
-  std::vector<SwarmState> simulate(float*);
+  std::vector<SwarmState> simulate(float*, Node*);
   
   SimulatorParameters parameters;
+  PlannerParameters planner_parameters;
+  thrust::host_vector<Obstacle> obstacles;
   
  private: 
 
   thrust::device_vector<BehaviorManager> behaviorManager; 
   thrust::device_vector<SwarmState> states;
+
+  thrust::device_vector<PlannerParameters> dParameters;
+  thrust::device_vector<Obstacle> dObstacles;
 };
 
 #endif // SIMULATOR_H 

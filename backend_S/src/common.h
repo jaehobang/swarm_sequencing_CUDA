@@ -79,6 +79,8 @@ typedef struct Node {
   BehaviorSequence sequence;
   SwarmState poses;
   bool valid;
+  bool optimal;
+  bool complete;
 } Node;
 
 typedef struct BehaviorContext {

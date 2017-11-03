@@ -38,8 +38,11 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   vl = new QLabel("Valid");
   cl = new QLabel("Complete");
+  ol = new QLabel("Optimal");
   vl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
   cl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+  ol->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+
 
   tl = new QLabel("Test Progress");
 
@@ -77,6 +80,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   QHBoxLayout* rowTmp3 = new QHBoxLayout();
   rowTmp3->addWidget(vl);
   rowTmp3->addWidget(cl);
+  rowTmp3->addWidget(ol);
 
   QVBoxLayout* col2 = new QVBoxLayout();
   col2->addWidget(prb);
@@ -495,6 +499,27 @@ void MyViz::generateErrorPopup(QString str)
   return;
 }
 
+void MyViz::generateProcessPopup()
+{
+  pp = new QWidget();
+  QString str = QString("The system is processing request, please wait....");
+  pp->setAttribute(Qt::WA_DeleteOnClose);
+  QRect rec = QApplication::desktop()->screenGeometry();
+  int height = rec.height();
+  int width = rec.width();
+  printf("height, width of application desktop is %d %d\n", height, width);
+  pp->move(width / 2, height / 2);
+  QLabel* lab = new QLabel(str);
+
+  QVBoxLayout* layout = new QVBoxLayout();
+  layout->addWidget(lab);
+
+  pp->setLayout(layout);
+  pp->show();
+  return;
+}
+
+
 
 void MyViz::generate()
 {  
@@ -566,6 +591,7 @@ void MyViz::generate()
    ROS_INFO("Done with generate()");
    QApplication::setOverrideCursor(Qt::WaitCursor);
    
+   this->generateProcessPopup();
    
    return;
 }
@@ -617,7 +643,9 @@ void MyViz::next()
     thw->reset();
     vl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
     cl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
-		this->curr_map_number++;
+		ol->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+    
+    this->curr_map_number++;
     pb->setValue(this->curr_map_number);
 
 		/*TODO
@@ -767,6 +795,7 @@ void MyViz::callBack2(const custom_messages::C2R::ConstPtr& msg)
 void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
 {
   QApplication::restoreOverrideCursor();
+  pp->close();
 
   if(msg->error == 1)
   {
@@ -781,7 +810,9 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   float cost_of_path = msg->cost_of_path;
   int is_valid_path = (int) msg->is_valid_path;
   int is_complete = (int) msg->is_complete;
+  int is_optimal = (int) msg->is_optimal;
  
+  printf("Interface valid, complete, optimal %d, %d, %d\n", is_valid_path, is_complete, is_optimal);
 
   
   //4. Update the Console Widget
@@ -811,6 +842,9 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
  
   if(is_complete) cl->setStyleSheet("QLabel {color : green; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
   else cl->setStyleSheet("QLabel {color : red; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+
+  if(is_optimal) ol->setStyleSheet("QLabel {color : green; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+  else ol->setStyleSheet("QLabel {color : red; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
 
   this->received_C = 1;
 
@@ -855,7 +889,17 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
     //We must fill up the table with new sequences!!
     stw->setSequence(sequence_arr_string);
   	  
-   }
+
+    //Newly Added!!
+    if(is_optimal == 0 || is_complete == 0)
+    {
+      QString mes = QString("This is not the optimal sequence, simply the best attempt.\n Try to expand the durations to get a better result.");
+      this->generateErrorPopup(mes);
+
+    }
+  }
+
+  
 
   // Send r2d data
   custom_messages::R2D r2d;

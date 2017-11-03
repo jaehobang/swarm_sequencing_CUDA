@@ -8,5 +8,6 @@ string description
 string switchtime_string
 string sequence_string
 string cost_of_path
+string coverage_ratio
 string is_valid_path
 string is_complete

@@ -39,10 +39,12 @@ Node computeBehaviorSequence(
 }
 
 std::vector<SwarmState> executeBehaviorSchedule(
-  const SimulatorParameters & parameters, float* costp)
+  const SimulatorParameters & parameters, float* costp, 
+  const PlannerParameters & planner_parameters, const std::vector<Obstacle> & obstacles, 
+  Node* best_node)
 {
-  Simulator simulator(parameters);
-  return simulator.simulate(costp);
+  Simulator simulator(parameters, planner_parameters, obstacles);
+  return simulator.simulate(costp, best_node);
 }
 
 }

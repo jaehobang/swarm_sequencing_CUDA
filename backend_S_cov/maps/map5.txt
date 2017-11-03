@@ -1,0 +1,31 @@
+# Robot Positions (x,y,theta)
+robot_pos
+-18 -10 0
+-16 -10 0
+-14 -10 0
+-12 -10 0
+-18 -12 0
+-16 -12 0
+-14 -12 0
+-18 -14 0
+-16 -14 0
+-14 -14 0
+
+# Number of Obstacles
+M 6
+
+# Obstacle positions (x,y,radius)
+obstacle_pos
+0 -10 1
+0 -5 1
+0 0 1
+-5 0 1
+-10 0 1
+-15 0 1
+
+# Target Center (x,y)
+target_center
+-10 10
+
+# Target Radius
+target_radius 7

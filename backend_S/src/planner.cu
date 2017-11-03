@@ -60,6 +60,11 @@ Node Planner::makePlan()
   node.sequence.length = 0;
   node.poses = parameters.initial;
   node.valid = true;
+  node.complete = false;
+  node.optimal = false;
+
+
+
 
   // FIXME: Do parallel reduce  
   for (int i=0; i<ROBOTS; i++) {
@@ -73,6 +78,12 @@ Node Planner::makePlan()
   std::cout << "Initial cost=" << node.cost 
             << ", heuristic=" << node.heuristic << std::endl;
 
+
+
+  Node node1;
+  memcpy(&node1, &node, sizeof(Node));
+  node1.heuristic = HEURISTIC_WEIGHT * 100000;
+
   // Copy to device and execute pipeline
   dParameters.assign(1, parameters);
   dObstacles = obstacles;
@@ -81,9 +92,10 @@ Node Planner::makePlan()
   node.cost = std::numeric_limits<float>::infinity();
   node.heuristic = 0.0f; 
   best.assign(1, node);
+  best_attempt.assign(1, node1);
 
-  executePipeline();
-  return best[0];
+  Node result = executePipeline();
+  return result;
 }
 
 struct compare_durations {
@@ -116,7 +128,7 @@ struct compare_node {
   __host__ __device__
   bool operator()(const Node & lhs, const Node & rhs) {
     bool c1  = (lhs.valid && rhs.valid);
-    bool c2  = (lhs.heuristic == rhs.heuristic);
+    bool c2  = (lhs.heuristic == rhs.heuristic); //reached destination
     bool r12 = (lhs.cost < rhs.cost);
     bool r1  = (lhs.heuristic < rhs.heuristic);
     bool r   = lhs.valid;
@@ -161,7 +173,7 @@ struct gte_value
   }
 };
 
-void Planner::executePipeline()
+Node Planner::executePipeline()
 {
   // XXX: These are raw device pointers, never dereference them!
   static_assert(sizeof(char) == 1, "Wrong size char");
@@ -182,18 +194,27 @@ void Planner::executePipeline()
     clock_t end = clock();
     float time_elapsed = float(end - start);
 
-    if (time_elapsed > 10000000) //10 sec
+    if (time_elapsed > 20000000) //10 sec
     {
       printf("Exceeded time limit of %f (ms)", time_elapsed /1e6);
+      Node bestNode = best[0];
+      Node bestAttemptNode = best_attempt[0];
+      if(bestNode.complete) return bestNode;
+      else return bestAttemptNode;
 
-
-      return;
     }
 
 
     Node bestNode = best[0];
     float bestPriority = bestNode.cost + bestNode.heuristic;
-    if (bestPriority <= priorities[0]) { return; }
+    if (bestPriority <= priorities[0]) { 
+      bestNode.optimal = 1;
+      printf("Found the optimal node!!\n");
+      return bestNode;
+    }
+
+
+
 
     int oldNumNodes = nodes.size();
     int nodesToExpand = std::min(oldNumNodes, MAX_SIMULTANEOUS_EXPANSIONS);
@@ -220,7 +241,6 @@ void Planner::executePipeline()
       compare_durations(pDurations));
     int d = maxDurationNode.sequence.length;
     // std::cout << "maxDurationNode.sequence.length = " << d << std::endl;
-    printf("d is %d, length is %d\n", d, parameters.durations.length);
     assert(d < parameters.durations.length);
     int max_duration = parameters.durations.times[d];
     //std::cout << "Max duration identified " << max_duration << std::endl;
@@ -260,16 +280,28 @@ void Planner::executePipeline()
     auto it = thrust::min_element(nodes.begin() + oldNumNodes, nodes.end(), cmpn);
     if (it != nodes.end()) {
       Node candidate = *it;
+
+      //Node curr_best_attempt = best_attempt[0];
+      if(cmpn(candidate, best_attempt[0]))
+      {
+        std::cout << "Updating best attempt!!" << std::endl;
+        printf("best_attempt valid %d\n", candidate.valid);
+        std::copy_n(candidate.sequence.ids, candidate.sequence.length, std::ostream_iterator<int>(std::cout, " ")); 
+        best_attempt[0] = candidate;
+      }
+      
+      
       //std::cout << "Candidate cost=" << candidate.cost 
       //          << ", heuristic=" << candidate.heuristic 
       //          << ", sequence=";
       //const BehaviorSequence & seq = candidate.sequence;
       //std::copy_n(seq.ids, seq.length, std::ostream_iterator<int>(std::cout, " ")); 
       //std::cout << std::endl;
-      if (cmpn(candidate, best[0])) { 
+      if (cmpn(candidate, best[0])) {
+        candidate.complete = 1; 
         best[0] = candidate; 
         bestPriority = candidate.cost + candidate.heuristic;
-        //std::cout << "Updated best node" << std::endl;
+        std::cout << "Updated best node" << std::endl;
       }
     }
 
@@ -309,5 +341,20 @@ void Planner::executePipeline()
     //std::cout << "Priorities: ";  
     //thrust::copy(priorities.begin(), priorities.end(), std::ostream_iterator<float>(std::cout, " "));
     //std::cout << std::endl;
+  }
+  printf("Searched entire space!!\n");
+  Node bestNode = best[0];
+  Node bestAttemptNode = best_attempt[0];
+  if(bestNode.complete) {
+
+    bestNode.optimal = 1;
+    printf("returning bestNode!\n");
+    printf("cost %f, heuristic %f\n", bestNode.cost, bestNode.heuristic);
+    return bestNode;
+  }
+  else {
+    printf("returning best attempt\n");
+    printf("bestattempt cost %f, heuristic %f\n", bestAttemptNode.cost, bestAttemptNode.heuristic);
+    return bestAttemptNode;
   }
 }
