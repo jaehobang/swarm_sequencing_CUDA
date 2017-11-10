@@ -68,8 +68,11 @@ typedef struct RETURN
   std::vector<POS> robot_positions;
   std::vector<int> sequence_end_indices;
   float cost_of_path;
+  float coverage_ratio;
   uint8_t is_valid_path;
   uint8_t is_complete;
+  uint8_t is_optimal;
+
   std::vector<std::string> sequence_string_array;
 } RETURN;
 

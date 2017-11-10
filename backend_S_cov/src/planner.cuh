@@ -47,6 +47,7 @@ private:
   thrust::device_vector<float> priorities;
   thrust::device_vector<Node> nodes;  
   thrust::device_vector<Node> best;
+  thrust::device_vector<Node> best_attempt;
 };
 
 #endif // PLANNER_H

@@ -45,7 +45,8 @@ void simulatorStage1(BehaviorManager * manager, int behaviorId)
 }
 
 __global__
-void simulatorStage2(BehaviorManager * manager, int behaviorId, SwarmState * state)
+void simulatorStage2(Node * nodeIn, BehaviorManager * manager, int behaviorId, 
+  SwarmState * state, MapLimits * mapLimits)
 {
   int i = threadIdx.x;
   Behavior * behavior = manager->getBehavior(behaviorId);
@@ -56,9 +57,23 @@ void simulatorStage2(BehaviorManager * manager, int behaviorId, SwarmState * sta
   state->x[i] = poses->x[i];
   state->y[i] = poses->y[i];
   state->theta[i] = poses->theta[i];
+  if (outsideMapLimits(ctx, i, mapLimits)) {
+    nodeIn->valid = false;
+  }
 } 
 
-
+__global__
+void simulatorStage2_1(Node * nodeIn, BehaviorManager * manager, int behaviorId, 
+  SwarmState * state, Obstacle * obstacles)
+{
+  int o = blockIdx.x;
+  int i = threadIdx.x;
+  Behavior * behavior = manager->getBehavior(behaviorId);
+  BehaviorContext * ctx = behavior->getContext(0);
+  if (robotIntersectsObstacle(ctx, obstacles+o, i)) {
+    nodeIn->valid = false;
+  }
+}
 
 __global__
 void simulatorStage3(BehaviorManager * manager, int behaviorId, float* dCost)
@@ -72,6 +87,8 @@ void simulatorStage3(BehaviorManager * manager, int behaviorId, float* dCost)
   float travelled = ctx->travelled[i];
   float tmp_cost = BlockReduce(storage).Sum(travelled);
   __syncthreads();
+
+  ctx->travelled[i] = 0.0f;
   if(i==0)
   {
     dCost[0] += tmp_cost;
@@ -82,3 +99,35 @@ void simulatorStage3(BehaviorManager * manager, int behaviorId, float* dCost)
 
 } 
 
+__global__
+void simulatorStage4(Node * nodeIn, BehaviorManager * manager, Target * target, int behaviorId, float robotRadius)
+{
+  int i = threadIdx.x;
+  Behavior * behavior = manager->getBehavior(behaviorId);
+  BehaviorContext * ctx = behavior->getContext(0);
+  SwarmState * poses = &(ctx->poses);
+
+
+  float x = poses->x[i];
+  float y = poses->y[i];
+
+  float dx = target->x - x;
+  float dy = target->y - y;
+  float distance = std::sqrt(dx*dx + dy*dy) - (target->radius - robotRadius);
+  if (distance < 0.0f) { distance = 0.0f; }
+  if(distance != 0){
+    nodeIn->complete = false;
+  }
+  
+  if(i == 0)
+  {
+    memcpy(&nodeIn->seen_map.seen[0][0], &ctx->seen_map.seen[0][0], sizeof(int)*MAPSIZE*MAPSIZE*4);
+    nodeIn->seen_map.seen_count = ctx->seen_map.seen_count;
+    int mapsize = nodeIn->seen_map.mapsize;
+    int total_cells = mapsize * mapsize * 4;
+    nodeIn->coverage_ratio = (float) nodeIn->seen_map.seen_count / total_cells;
+  }
+  
+
+
+}

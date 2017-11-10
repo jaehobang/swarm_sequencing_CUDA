@@ -156,6 +156,8 @@ target_link_libraries(basic_shapes ${catkin_LIBRARIES})
 add_executable(panel src/main.cpp src/full_panel.cpp src/full_panel.h)
 target_link_libraries(panel ${Qt5Widgets_LIBRARIES} ${catkin_LIBRARIES})
 
+add_executable(control src/interactive_marker.cpp)
+target_link_libraries(control ${catkin_LIBRARIES})
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure

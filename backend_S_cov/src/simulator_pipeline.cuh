@@ -34,9 +34,19 @@ void simulatorStage1(BehaviorManager * manager, int behaviorId);
 
 // SimulatorStage2: All to individual reductions
 __global__
-void simulatorStage2(BehaviorManager * manager, int behaviorId, SwarmState * state);
+void simulatorStage2(Node * nodeIn, BehaviorManager * manager, int behaviorId, 
+	SwarmState * state, MapLimits * mapLimits);
+
+// obstacle detection
+__global__
+void simulatorStage2_1(Node * nodeIn, BehaviorManager * manager, int behaviorId, 
+  SwarmState * state, Obstacle * obstacles);
+
 
 __global__
 void simulatorStage3(BehaviorManager * manager, int behaviorId, float* dCost);
+
+__global__
+void simulatorStage4(Node * nodeIn, BehaviorManager * manager, Target * target, int behaviorId, float robotRadius);
 
 #endif // SIMULATOR_PIPELINE_H

@@ -60,6 +60,9 @@ Node Planner::makePlan()
   node.sequence.length = 0;
   node.poses = parameters.initial;
   node.valid = true;
+  node.complete = false;
+  node.optimal = false;
+  /*
   node.seen_map.mapsize = parameters.mapLimits.maxX - parameters.mapLimits.minX;
 
   for (int i = 0; i < node.seen_map.mapsize; i++)
@@ -69,7 +72,7 @@ Node Planner::makePlan()
       node.seen_map.seen[i][j] = 0;
     }
   }
-
+*/
   // FIXME: Do parallel reduce  
   for (int i=0; i<ROBOTS; i++) {
     float dx = parameters.target.x - node.poses.x[i];
@@ -82,6 +85,10 @@ Node Planner::makePlan()
   std::cout << "Initial cost=" << node.cost 
             << ", heuristic=" << node.heuristic << std::endl;
 
+  Node node1;
+  memcpy(&node1, &node, sizeof(Node));
+  node1.heuristic = HEURISTIC_WEIGHT * std::numeric_limits<float>::infinity();
+
   // Copy to device and execute pipeline
   dParameters.assign(1, parameters);
   dObstacles = obstacles;
@@ -89,9 +96,10 @@ Node Planner::makePlan()
   nodes.assign(1, node);
   node.cost = std::numeric_limits<float>::infinity();
   node.heuristic = 0.0f; 
-  best.assign(1, node);
+  best.assign(1, node1);
 
-  return executePipeline();
+  Node result = executePipeline();
+  return result;
 }
 
 struct compare_durations {
@@ -190,14 +198,24 @@ Node Planner::executePipeline()
     clock_t end = clock();
     float time_elapsed = float(end - start);
 
-    Node bestNode = best[0];
-    float bestPriority = bestNode.cost + bestNode.heuristic;
-
+    
     if (time_elapsed > 10000000) //10 sec
     {
       printf("Exceeded time limit of %f (ms)", time_elapsed /1e6);
+      Node bestNode = best[0];
+      Node bestAttemptNode = best_attempt[0];
+      if(bestNode.complete) return bestNode;
+      else return bestAttemptNode;
+    }
+
+    Node bestNode = best[0];
+    float bestPriority = bestNode.cost + bestNode.heuristic;
+    if (bestPriority <= priorities[0]) { 
+      bestNode.optimal = 1;
+      printf("Found the optimal node!!\n");
       return bestNode;
     }
+
 
     int oldNumNodes = nodes.size();
     int nodesToExpand = std::min(oldNumNodes, MAX_SIMULTANEOUS_EXPANSIONS);
@@ -215,7 +233,7 @@ Node Planner::executePipeline()
     float* h_coverage_ratios = new float(nodesToExpand);
     cudaMemcpy(&h_coverage_ratios, &d_coverage_ratios, sizeof(float)*nodesToExpand, cudaMemcpyDeviceToHost);
 
-
+/*
     for(int i = 0; i < nodesToExpand; i++)
     {
       if(h_coverage_ratios[i] > TARGET_RATIO)
@@ -227,7 +245,7 @@ Node Planner::executePipeline()
         }
       }
     }
-
+*/
     //std::cout << "Priorities: ";  
     //thrust::copy(priorities.begin(), priorities.end(), std::ostream_iterator<float>(std::cout, " "));
     //std::cout << std::endl;
@@ -285,6 +303,14 @@ Node Planner::executePipeline()
     auto it = thrust::min_element(nodes.begin() + oldNumNodes, nodes.end(), cmpn);
     if (it != nodes.end()) {
       Node candidate = *it;
+
+      if(cmpn(candidate, best_attempt[0]))
+      {
+        std::cout << "Updating best attempt!!" << std::endl;
+        printf("best_attempt valid %d\n", candidate.valid);
+        std::copy_n(candidate.sequence.ids, candidate.sequence.length, std::ostream_iterator<int>(std::cout, " ")); 
+        best_attempt[0] = candidate;
+      }
       //std::cout << "Candidate cost=" << candidate.cost 
       //          << ", heuristic=" << candidate.heuristic 
       //          << ", sequence=";
@@ -294,7 +320,7 @@ Node Planner::executePipeline()
       if (cmpn(candidate, best[0])) { 
         best[0] = candidate; 
         bestPriority = candidate.cost + candidate.heuristic;
-        //std::cout << "Updated best node" << std::endl;
+        std::cout << "Updated best node" << std::endl;
       }
     }
 
@@ -338,5 +364,17 @@ Node Planner::executePipeline()
   //Need to show that this is actually the best attempt, since we searched the whole space and could not find the answer
   printf("No valid sequence found...returning best attempt");
   Node bestNode = best[0];
-  return bestNode;
+  Node bestAttemptNode = best_attempt[0];
+  if(bestNode.complete) {
+
+    bestNode.optimal = 1;
+    printf("returning bestNode!\n");
+    printf("cost %f, heuristic %f\n", bestNode.cost, bestNode.heuristic);
+    return bestNode;
+  }
+  else {
+    printf("returning best attempt\n");
+    printf("bestattempt cost %f, heuristic %f\n", bestAttemptNode.cost, bestAttemptNode.heuristic);
+    return bestAttemptNode;
+  }
 }

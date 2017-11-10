@@ -55,6 +55,8 @@ private Q_SLOTS:
   void checkNext();
   void nextWrapper();
   void createHSIWidget();
+  
+
 
 private:
   TimerWidget* tw;
@@ -76,6 +78,7 @@ private:
   QLabel* ol; //optimal label
   QLabel* tl;
   QProgressBar* pb;
+  
 
   rviz::VisualizationManager* manager_;
   rviz::RenderPanel* render_panel_;
@@ -102,6 +105,7 @@ private:
   QString aided_optimal_sequence;
   QString aided_optimal_cost;
   int curr_map_number;
+  
 
 
   std::vector<int> sequenceInputConvert(QString sequence);

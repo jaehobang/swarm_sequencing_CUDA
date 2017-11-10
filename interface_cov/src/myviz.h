@@ -55,6 +55,7 @@ private Q_SLOTS:
   void checkNext();
   void nextWrapper();
   void createHSIWidget();
+  void updateCoverage(int value);
 
 private:
   TimerWidget* tw;
@@ -69,11 +70,16 @@ private:
 	SequenceTimeWidget* stw;
   QWidget* np;
   QWidget* pw;
+  QWidget* pp;
   PopupWidget* ip;
   QLabel* vl; //valid label
   QLabel* cl; //complete label
+  QLabel* ol; //optimal label
   QLabel* tl;
   QProgressBar* pb;
+  QSlider* cs; //coverage slider
+  QLabel* sl; //slider label
+  QLabel* crl; //coverage ratio label
 
   rviz::VisualizationManager* manager_;
   rviz::RenderPanel* render_panel_;
@@ -100,12 +106,13 @@ private:
   QString aided_optimal_sequence;
   QString aided_optimal_cost;
   int curr_map_number;
-
+  float coverage_ratio;
 
   std::vector<int> sequenceInputConvert(QString sequence);
   std::vector<float> switchtimeInputConvert(QString switchtime);
   int iterationConvert(QString iteration);
   void generateErrorPopup(QString str);
+  void generateProcessPopup();
 };
 
 // END_TUTORIAL

@@ -38,8 +38,11 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   vl = new QLabel("Valid");
   cl = new QLabel("Complete");
+  ol = new QLabel("Optimal");
   vl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
   cl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+  ol->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+
 
   tl = new QLabel("Test Progress");
 
@@ -48,6 +51,11 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   pb->setRange(0,17);
   pb->setValue(curr_map_number);
 
+  crl = new QLabel("Objective Coverage Ratio");
+  cs = new QSlider(Qt::Horizontal, this);
+  sl = new QLabel("0.00");
+
+
   render_panel_ = new rviz::RenderPanel();
 
   tw->setFixedSize(QSize(450, 100));
@@ -55,12 +63,15 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   cw->setFixedSize(QSize(450, 120));
   thw->setFixedSize(QSize(450, 100));
   pb->setFixedSize(QSize(450, 30));
+  cs->setFixedSize(QSize(400, 30));
+  sl->setFixedSize(QSize(50, 30));
 
   connect(tw, SIGNAL(signalDone()), this, SLOT(timerDone()));
   connect(rb, SIGNAL(released()), this, SLOT(generate()));
   connect(nb, SIGNAL(released()), this, SLOT(checkNext()));
 	connect(sb, SIGNAL(released()), this, SLOT(submit()));
   connect(prb, SIGNAL(released()), tw, SLOT(pauseResume()));
+  connect(cs, SIGNAL(valueChanged(int)), this, SLOT(updateCoverage(int)));
 
   QVBoxLayout* col1 = new QVBoxLayout();
   col1->addWidget(render_panel_);
@@ -77,6 +88,14 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   QHBoxLayout* rowTmp3 = new QHBoxLayout();
   rowTmp3->addWidget(vl);
   rowTmp3->addWidget(cl);
+  rowTmp3->addWidget(ol);
+
+  QHBoxLayout* rowTmp4 = new QHBoxLayout();
+  rowTmp4->addWidget(cs);
+  rowTmp4->addWidget(sl);
+  QVBoxLayout* colTmp1 = new QVBoxLayout();
+  colTmp1->addWidget(crl);
+  colTmp1->addLayout(rowTmp4);
 
   QVBoxLayout* col2 = new QVBoxLayout();
   col2->addWidget(prb);
@@ -86,6 +105,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   col2->addLayout(rowTmp2);
   col2->addWidget(thw);
+  col2->addLayout(colTmp1);
   col2->addLayout(rowTmp3);
   col2->addWidget(cw);
  
@@ -108,7 +128,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   rviz::Config config;
   
   rviz::YamlConfigReader* reader = new rviz::YamlConfigReader();
-  reader->readFile( config, "/home/jaeho-linux/hri2017/src/tmp1.rviz" );
+  reader->readFile( config, "/home/jaeho-linux/hri2017/src/tmp2.rviz" );
   //Check that config file is loading what I am expecting.....
   printf("config object validity check %d\n", (int) config.isValid());
 
@@ -165,6 +185,20 @@ MyViz::~MyViz()
   delete manager_;
 }
 
+
+void MyViz::updateCoverage(int value)
+{
+  this->coverage_ratio = (float) value / 100;
+  if(this->coverage_ratio == 0)
+  {
+    sl->setText("0.00");  
+  }
+  else
+  {
+    sl->setText(QString::number(this->coverage_ratio));  
+  }
+  
+}
 
 void MyViz::createHSIWidget()
 {
@@ -495,6 +529,27 @@ void MyViz::generateErrorPopup(QString str)
   return;
 }
 
+void MyViz::generateProcessPopup()
+{
+  pp = new QWidget();
+  QString str = QString("The system is processing request, please wait....");
+  pp->setAttribute(Qt::WA_DeleteOnClose);
+  QRect rec = QApplication::desktop()->screenGeometry();
+  int height = rec.height();
+  int width = rec.width();
+  printf("height, width of application desktop is %d %d\n", height, width);
+  pp->move(width / 2, height / 2);
+  QLabel* lab = new QLabel(str);
+
+  QVBoxLayout* layout = new QVBoxLayout();
+  layout->addWidget(lab);
+
+  pp->setLayout(layout);
+  pp->show();
+  return;
+}
+
+
 
 void MyViz::generate()
 {  
@@ -544,6 +599,8 @@ void MyViz::generate()
      printf("\n");
    }
    r2c.sequence_int_array = sequence_arr; 
+   r2c.coverage_ratio = this->coverage_ratio;
+
    ic_publisher.publish(r2c);
    ros::spinOnce();
    this->received_C = 0;
@@ -566,6 +623,7 @@ void MyViz::generate()
    ROS_INFO("Done with generate()");
    QApplication::setOverrideCursor(Qt::WaitCursor);
    
+   this->generateProcessPopup();
    
    return;
 }
@@ -617,7 +675,9 @@ void MyViz::next()
     thw->reset();
     vl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
     cl->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
-		this->curr_map_number++;
+		ol->setStyleSheet("QLabel {color : black; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+    
+    this->curr_map_number++;
     pb->setValue(this->curr_map_number);
 
 		/*TODO
@@ -767,6 +827,7 @@ void MyViz::callBack2(const custom_messages::C2R::ConstPtr& msg)
 void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
 {
   QApplication::restoreOverrideCursor();
+  pp->close();
 
   if(msg->error == 1)
   {
@@ -781,9 +842,10 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   float cost_of_path = msg->cost_of_path;
   int is_valid_path = (int) msg->is_valid_path;
   int is_complete = (int) msg->is_complete;
+  int is_optimal = (int) msg->is_optimal;
   float coverage_ratio = (float) msg->coverage_ratio;
-  uint8_t is_optimal = msg->is_optimal;
  
+  printf("Interface valid, complete, optimal %d, %d, %d\n", is_valid_path, is_complete, is_optimal);
 
   
   //4. Update the Console Widget
@@ -804,7 +866,7 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   //if(is_complete) this->curr_complete = "Path arrives at destination";
   //else this->curr_complete = "Path does not arrive at destination";
   cw->update(this->curr_sequence, this->curr_switchtime, 
-						 this->curr_cost, this->curr_valid, this->curr_complete);
+             this->curr_cost, this->curr_valid, this->curr_complete);
 
   ROS_INFO("Console is done being updated!");
 
@@ -814,6 +876,9 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
  
   if(is_complete) cl->setStyleSheet("QLabel {color : green; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
   else cl->setStyleSheet("QLabel {color : red; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+
+  if(is_optimal) ol->setStyleSheet("QLabel {color : green; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
+  else ol->setStyleSheet("QLabel {color : red; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
 
   this->received_C = 1;
 
@@ -858,15 +923,17 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
     //We must fill up the table with new sequences!!
     stw->setSequence(sequence_arr_string);
   	  
-   }
 
+    //Newly Added!!
+    if(is_optimal == 0 || is_complete == 0)
+    {
+      QString mes = QString("This is not the optimal sequence, simply the best attempt.\n Try to expand the durations to get a better result.");
+      this->generateErrorPopup(mes);
 
-  //Newly Added!!
-  if(is_optimal == 0)
-  {
-    QString mes = QString("This is not the optimal sequence, simply the best attempt.\n Try to expand the durations to get a better result.");
-    this->generateErrorPopup(mes);
+    }
   }
+
+  
 
   // Send r2d data
   custom_messages::R2D r2d;

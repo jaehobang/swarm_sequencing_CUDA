@@ -37,6 +37,7 @@ const float TIME_STEP_DT = 0.1f;
 constexpr float MAX_MISSION_TIME = 60.0f;
 const int MAX_DURATION = MAX_MISSION_TIME / TIME_STEP_DT;
 
+//added
 const int MAPSIZE = 40;
 const float TARGET_RATIO = 0.2;
 
@@ -90,6 +91,8 @@ typedef struct Node {
   SwarmState poses;
   SeenMap seen_map;
   bool valid;
+  bool optimal;
+  bool complete;
 } Node;
 
 typedef struct BehaviorContext {

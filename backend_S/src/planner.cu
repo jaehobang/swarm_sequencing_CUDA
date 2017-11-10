@@ -216,6 +216,7 @@ Node Planner::executePipeline()
 
 
 
+
     int oldNumNodes = nodes.size();
     int nodesToExpand = std::min(oldNumNodes, MAX_SIMULTANEOUS_EXPANSIONS);
     priorities.resize(oldNumNodes+nodesToExpand*BEHAVIORS, std::numeric_limits<float>::infinity());

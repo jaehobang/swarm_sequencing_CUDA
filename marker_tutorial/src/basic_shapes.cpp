@@ -9,7 +9,7 @@ int main( int argc, char** argv )
   ros::Publisher marker_arr_pub = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
 
   // Set our initial shape type to be a cube
-  uint32_t type = visualization_msgs::Marker::LINE_STRIP;
+  uint32_t type = visualization_msgs::Marker::CUBE_LIST;
 
   std::vector<int> ids;
   std::vector<double> xs;
@@ -19,8 +19,51 @@ int main( int argc, char** argv )
   geometry_msgs::Point point;
   visualization_msgs::MarkerArray marker_arr;
 
+  //publishes the white cubes
+  printf("Inside publishMarkerCubes....\n");
+  ros::Rate i_Rate(1);
+  visualization_msgs::MarkerArray mk_arr;
+  visualization_msgs::Marker mk;
 
-  while (ros::ok())
+  mk.header.stamp = ros::Time::now();
+  mk.header.frame_id = "map";
+  mk.ns = "coverage_map";
+  mk.id = 0;  
+  mk.type = visualization_msgs::Marker::CUBE_LIST;
+  mk.action = visualization_msgs::Marker::ADD;
+  mk.scale.x = 10;
+  mk.scale.y = 10;
+  mk.scale.z = 10;
+  mk.lifetime = ros::Duration();
+  mk.color.r = (float) 1;
+  mk.color.g = (float) 1;
+  mk.color.b = (float) 1;
+  mk.color.a = 1.0;
+  int x_offset = -40;
+  int y_offset = -40;
+  for(int i = 0; i < 40*2; i++)
+  {
+    for(int j = 0; j < 40*2; j++)
+    {
+      geometry_msgs::Point p;
+      if(i % 2 == 0 )
+      {
+        //TODO: check that this is correct
+        p.y = i - y_offset;
+        p.x = j - x_offset;
+        p.z = 0;
+        mk.points.push_back(p);
+      }
+    }
+  }
+  mk_arr.markers.push_back(mk);
+
+  marker_arr_pub.publish(mk_arr);
+  ros::spinOnce();
+  i_Rate.sleep();
+
+/*
+ while (ros::ok())
   { 
     for(int robot_i = 0;  robot_i < 10; robot_i++)
     {
@@ -40,7 +83,7 @@ int main( int argc, char** argv )
   	  marker.id = ids[robot_i];
   	  ids[robot_i]++;
 
-			if(ids[robot_i] == 5) return 0;
+			if(ids[robot_i] == 2) return 0;
     // Set the marker type.  Initially this is CUBE, and cycles between that and SPHERE, ARROW, and CYLINDER
       marker.type = type;
 
@@ -49,20 +92,20 @@ int main( int argc, char** argv )
 
     // Set the pose of the marker.  
     //This is a full 6DOF pose relative to the frame/time specified in the header
-      for(int i = 0; i < 2000; i++)
+      for(int i = 0; i < 400; i++)
       {
         point.x = xs[robot_i];
         point.y = ys[robot_i];
         point.z = 0;
-        xs[robot_i]+= 0.01;
-        ys[robot_i]+= 0.01;
+        xs[robot_i]+= 1;
+        ys[robot_i]+= 1;
         marker.points.push_back(point);
       }
 
       // Set the scale of the marker -- 1x1x1 here means 1m on a side
-      marker.scale.x = 0.10;
-      marker.scale.y = 0.10;
-      marker.scale.z = 0.10;
+      marker.scale.x = 1;
+      marker.scale.y = 1;
+      marker.scale.z = 1;
 
 
 			if(ids[0] == 0){
@@ -101,4 +144,5 @@ int main( int argc, char** argv )
 
     r.sleep();
   }
+*/
 }

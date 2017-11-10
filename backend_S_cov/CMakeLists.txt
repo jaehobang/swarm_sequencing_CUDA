@@ -66,7 +66,7 @@ include_directories(
 
 ADD_EXECUTABLE(backend_S_cov_node src/main.cpp)
 
-ADD_DEPENDENCIES(backend_S_cov_node CudaLib2)
+ADD_DEPENDENCIES(backend_S_cov_node CudaLib3)
 
 TARGET_LINK_LIBRARIES(backend_S_cov_node
 

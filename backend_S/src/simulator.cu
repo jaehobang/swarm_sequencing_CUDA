@@ -50,6 +50,8 @@ Simulator::simulate(float* costp, Node* best_node)
     reinterpret_cast<char *>(pParameters) + offsetof(PlannerParameters, target));
 
 
+
+
   float* dCost;
   cudaMalloc(&dCost, sizeof(float));
   cudaMemcpy(dCost, costp, sizeof(float), cudaMemcpyHostToDevice);
