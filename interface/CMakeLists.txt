@@ -162,6 +162,8 @@ set(SOURCE_FILES
   src/timehorizonwidget.cpp
   src/sequencetimewidget.h
 	src/sequencetimewidget.cpp
+  src/compare_widget.h
+  src/compare_widget.cpp
 )
 
 

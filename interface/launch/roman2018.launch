@@ -1,0 +1,5 @@
+<launch>
+  <node name="interface_node" pkg="interface" type="interface_node" />
+  <node name="backend_S_node" pkg="backend_S" type="backend_S_node" />
+ <!-- <node name="backend_D_node" pkg="backend_D" type="backend_D_node" />  -->
+</launch>

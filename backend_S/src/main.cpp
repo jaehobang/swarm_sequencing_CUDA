@@ -8,6 +8,9 @@
 #include <fstream>
 #include <sstream>
 
+#include <interactive_markers/interactive_marker_server.h>
+#include <tf/tf.h>
+
 
 using namespace std;
 
@@ -21,6 +24,163 @@ PARAM* parameter;
 int N = 10;
 int MAP_NUM = 0;
 std::vector<int> map_sequence;
+
+boost::shared_ptr<interactive_markers::InteractiveMarkerServer> server;
+
+visualization_msgs::Marker makeCircle( visualization_msgs::InteractiveMarker &msg , float radius)
+{
+  visualization_msgs::Marker marker;
+  
+  marker.type = visualization_msgs::Marker::CYLINDER;
+  marker.scale.x = radius * 2;
+  marker.scale.y = radius * 2;
+  marker.scale.z = 0.1;
+  marker.color.r = 0.5;
+  marker.color.g = 0.5;
+  marker.color.b = 0.5;
+  marker.color.a = 1.0;
+
+  return marker;
+}
+
+
+visualization_msgs::Marker makeLine( visualization_msgs::InteractiveMarker &msg , 
+                          float start_x, float start_y, float end_x, float end_y)
+{
+  visualization_msgs::Marker marker;
+  
+  marker.type = visualization_msgs::Marker::LINE_STRIP;
+  marker.scale.x = 1;
+  marker.scale.y = 1;
+  marker.scale.z = 1;
+  marker.color.r = 0.5;
+  marker.color.g = 0.5;
+  marker.color.b = 0.5;
+  marker.color.a = 1.0;
+
+  geometry_msgs::Point sp;
+  sp.x = start_x;
+  sp.y = start_y;
+  sp.z = 0;
+  geometry_msgs::Point ep;
+  ep.x = end_x;
+  ep.y = end_y;
+  ep.z = 0;
+  marker.points.push_back(sp);
+  marker.points.push_back(ep);
+
+  return marker;
+}
+
+
+// %Tag(processFeedback)%
+void processFeedback( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
+{
+
+  if( feedback->mouse_point_valid )
+  {
+    //parameter->target_center[0] = feedback->mouse_point.x;
+    //parameter->target_center[1] = feedback->mouse_point.y;
+    parameter->target_center[0] = feedback->pose.position.x;
+    parameter->target_center[1] = feedback->pose.position.y;
+  }
+  server->applyChanges();
+}
+
+void makeDestinationMarker( const tf::Vector3& position, const float radius )
+{
+  visualization_msgs::InteractiveMarker int_marker;
+  int_marker.header.frame_id = "map";
+  tf::pointTFToMsg(position, int_marker.pose.position);
+  int_marker.scale = 1;
+
+  int_marker.name = "chess_piece";
+  int_marker.description = "";
+
+  visualization_msgs::InteractiveMarkerControl control;
+
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 1;
+  control.orientation.z = 0;
+  control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_PLANE;
+  int_marker.controls.push_back(control);
+
+  // make a box which also moves in the plane
+  control.markers.push_back( makeCircle(int_marker, radius) );
+  control.always_visible = true;
+  int_marker.controls.push_back(control);
+
+  // we want to use our special callback function
+  server->insert(int_marker);
+  server->setCallback(int_marker.name, &processFeedback);
+
+  // set different callback for POSE_UPDATE feedback
+  //server->setCallback(int_marker.name, &alignMarker, visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE );
+}
+
+
+void makeAxisMarker( const tf::Vector3& position, const float length )
+{
+  visualization_msgs::InteractiveMarker int_marker_east;
+  int_marker_east.header.frame_id = "map";
+  tf::pointTFToMsg(position, int_marker_east.pose.position);
+  int_marker_east.scale = 1;
+
+  int_marker_east.name = "axes East";
+  int_marker_east.description = "East";
+
+
+  visualization_msgs::InteractiveMarkerControl control;
+
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 1;
+  control.orientation.z = 0;
+  int_marker_east.controls.push_back(control);
+
+  geometry_msgs::Point sp;
+  tf::pointTFToMsg(position, sp);
+  float ex = sp.x + length;
+  float ey = sp.y - length;
+
+  control.markers.push_back( makeLine(int_marker_east, sp.x, sp.y, ex, sp.y) );
+  control.always_visible = true;
+  int_marker_east.controls.push_back(control);
+
+  // we want to use our special callback function
+  server->insert(int_marker_east, &processFeedback);
+  server->applyChanges();
+
+  visualization_msgs::InteractiveMarker int_marker_south;
+  int_marker_south.header.frame_id = "map";
+  tf::pointTFToMsg(position, int_marker_south.pose.position);
+  int_marker_south.scale = 1;
+
+  int_marker_south.name = "axes South";
+  int_marker_south.description = "South";
+
+
+  visualization_msgs::InteractiveMarkerControl control1;
+
+  control1.orientation.w = 1;
+  control1.orientation.x = 0;
+  control1.orientation.y = 1;
+  control1.orientation.z = 0;
+  int_marker_south.controls.push_back(control1);
+
+  control1.markers.push_back( makeLine(int_marker_south, sp.x, sp.y, sp.x, ey) );
+  control1.always_visible = true;
+  int_marker_south.controls.push_back(control1);
+
+  // we want to use our special callback function
+  server->insert(int_marker_south, &processFeedback);
+  server->applyChanges();
+}
+
+
+
+//////////END of Dynamic Objective Change Related Functions///////////
 
 int errorCheckR2C(const custom_messages::R2C::ConstPtr& msg)
 {
@@ -474,6 +634,7 @@ void parseMap()
 
 void updateMap()
 {
+  /* TODO: Note that for ai part, this chunk of code needs to be erased.... Didn't really figure out what to do with this */
 	while (cr1_publisher.getNumSubscribers() < 1)
   {
     if (!ros::ok())
@@ -482,7 +643,9 @@ void updateMap()
     }
     ROS_WARN_ONCE("Please create a subscriber to the marker");
     sleep(1);
-  }//1. Parse the txt file that represents the map
+  }
+  
+  //1. Parse the txt file that represents the map
 	parseMap();
   MAP_NUM++;
 	//2. Publish series of visualization_marker message to rviz for robot initial positions, obstacles, and goal
@@ -624,9 +787,27 @@ void updateMap()
   mk.pose.position.x = 0;
   mk.pose.position.y = 0;
 
-
-
   cr1_publisher.publish(mk);
+
+  tf::Vector3 position;
+  position = tf::Vector3(parameter->target_center[0], parameter->target_center[1], 0);
+  makeDestinationMarker( position, parameter->target_radius );
+  server->applyChanges();
+  //tf::Vector3 position_axes;
+  //position_axes = tf::Vector3(-18, 18, 0);
+  //makeAxisMarker(position_axes, 5);
+
+
+
+
+
+
+
+
+
+
+
+
   ros::spinOnce();
   cr1_rate.sleep();  
 
@@ -708,6 +889,11 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "backend_S");
   ros::NodeHandle n;
   ROS_INFO("Starting backend_S node..\n");
+
+
+  server.reset(new interactive_markers::InteractiveMarkerServer("backend_S", "", false));
+  ros::Duration(0.1).sleep();
+
   ci_publisher = n.advertise<custom_messages::C2R>("/hsi/C2R", 1000);
   ci1_publisher = n.advertise<custom_messages::C2R>("/hsi/C2R2", 1000);
   cr_publisher = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
@@ -721,5 +907,7 @@ int main(int argc, char** argv)
   ros::Subscriber c_subscriber = n.subscribe<custom_messages::R2C>("/hsi/R2C", 1000, callBack);
 
   ros::spin();
+
+  server.reset();
   return 0;
 }

@@ -1,12 +1,13 @@
 #include "myviz.h"
 
-
+#include <QtDebug>
 #include "rviz/visualization_manager.h"
 #include "rviz/render_panel.h"
 #include "rviz/display.h"
 #include "rviz/yaml_config_reader.h"
 #include "rviz/config.h"
 #include "rviz/yaml_config_writer.h"
+#include "rviz/ogre_helpers/axes.h"
 
 MyViz::MyViz( QWidget* parent) : QWidget( parent )
 {
@@ -51,14 +52,17 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   pb->setRange(0,17);
   pb->setValue(curr_map_number);
 
+  compw = new Compare_Widget(0, "Cost");
+
   render_panel_ = new rviz::RenderPanel();
 
-  tw->setFixedSize(QSize(450, 100));
-  stw->setFixedSize(QSize(450, 400));
-  cw->setFixedSize(QSize(450, 120));
-  thw->setFixedSize(QSize(450, 100));
-  pb->setFixedSize(QSize(450, 30));
-
+  tw->setFixedSize(QSize(450, 80));
+  stw->setFixedSize(QSize(450, 360));
+  cw->setFixedSize(QSize(450, 100));
+  thw->setFixedSize(QSize(450, 80));
+  pb->setFixedSize(QSize(450, 20));
+  compw->setFixedSize(QSize(450, 80));
+  //sb->setFixedSize(QSize(220, 100));
   connect(tw, SIGNAL(signalDone()), this, SLOT(timerDone()));
   connect(rb, SIGNAL(released()), this, SLOT(generate()));
   connect(nb, SIGNAL(released()), this, SLOT(checkNext()));
@@ -89,6 +93,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   col2->addWidget(stw);
 
   col2->addLayout(rowTmp2);
+  col2->addWidget(compw);
   col2->addWidget(thw);
   col2->addLayout(rowTmp3);
   col2->addWidget(cw);
@@ -128,6 +133,33 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   printf("Finished showing...\n");
 
   connect(this->ip, SIGNAL(widgetClosed()), this, SLOT(createHSIWidget()));
+
+
+  rviz::Axes* axes_ = new rviz::Axes(manager_->getSceneManager(), 0, 5.0f, 0.5f);
+  Ogre::Vector3* position = new Ogre::Vector3(-38,33,0);
+  axes_->setPosition(*position);
+/*
+  rviz::Axes* axes_1 = new rviz::Axes(manager_->getSceneManager(), 0, 5.0f, 0.1f);
+  Ogre::Vector3* position1 = new Ogre::Vector3(2,3,4);
+  axes_1->setPosition(*position1);
+
+  rviz::Axes* axes_2 = new rviz::Axes(manager_->getSceneManager(), 0, 5.0f, 0.1f);
+  Ogre::Vector3* position2 = new Ogre::Vector3(3,4,5);
+  axes_2->setPosition(*position2);
+*/
+
+/*
+  rviz::Display* axes_ = manager_->createDisplay("rviz/Axes", "xyz", true);
+  ROS_ASSERT( axes_ != NULL );
+
+  axes_->subProp("Length")->setValue(5);
+  axes_->subProp("Radius")->setValue(0.1);
+  Ogre::Vector3 pos = new Ogre::Vector3(1,2,3);
+  axes_->subProp("Position")->setValue(pos);
+
+  // Try to set the location elsewhere
+  qDebug("%s", axes_->getName());
+*/
 /*
   trajectory_ = manager_->createDisplay( "rviz/MarkerArray", "Marker Array", true );
   ROS_ASSERT( trajectory_ != NULL );
@@ -847,6 +879,8 @@ void MyViz::callBack(const custom_messages::C2R::ConstPtr& msg)
   else ol->setStyleSheet("QLabel {color : red; font-size: 20px; font-style: bold; qproperty-alignment: AlignCenter }");
 
   this->received_C = 1;
+
+  compw->updateValue(cost_of_path);
 
   //Update time horizon and sequence table and console widget
   if(is_aided == 1 || is_aided == 2){

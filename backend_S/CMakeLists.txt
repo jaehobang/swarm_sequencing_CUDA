@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   custom_messages
   visualization_msgs
+  interactive_markers
 )
 add_compile_options(-std=c++11)
 #add_compile_options(-ltbb)

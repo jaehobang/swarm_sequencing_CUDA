@@ -13,6 +13,7 @@
 #include "popupwidget.h"
 #include "timehorizonwidget.h"
 #include "sequencetimewidget.h"
+#include "compare_widget.h"
 
 #include "custom_messages/R2C.h"
 #include "custom_messages/R2D.h"
@@ -78,6 +79,7 @@ private:
   QLabel* ol; //optimal label
   QLabel* tl;
   QProgressBar* pb;
+  Compare_Widget* compw;
   
 
   rviz::VisualizationManager* manager_;
