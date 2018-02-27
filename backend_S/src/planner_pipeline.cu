@@ -113,6 +113,27 @@ void plannerStageC1(Node * nodesIn, Node * nodesOut, BehaviorManager * manager,
 }
 
 __global__
+void plannerStageC1_5(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, 
+  DurationSequence * durations, Obstacle_n * obstacles)
+{
+  int n = blockIdx.x;
+  int b = blockIdx.y;
+  int o = blockIdx.z;
+  int i = threadIdx.x;
+  int q = n*BEHAVIORS + b;
+  if (nodesOut[q].valid) {
+    int duration = durations->times[nodesIn[n].sequence.length];
+    if (nodesOut[q].t < nodesIn[n].t + duration) {
+      Behavior * behavior = manager->getBehavior(b);
+      BehaviorContext * ctx = behavior->getContext(n);
+      if (robotIntersectsObstacle_n(ctx, obstacles+o, i)) {
+        nodesOut[q].valid = false;
+      }
+    }
+  }
+}
+
+__global__
 void plannerStageC2(Node * nodesIn, Node * nodesOut, DurationSequence * durations)
 {
   int n = blockIdx.x;

@@ -42,6 +42,9 @@ __global__
 void simulatorStage2_1(Node * nodeIn, BehaviorManager * manager, int behaviorId, 
   SwarmState * state, Obstacle * obstacles);
 
+__global__
+void simulatorStage2_2(Node * nodeIn, BehaviorManager * manager, int behaviorId, 
+  SwarmState * state, Obstacle_n* obstacles);
 
 __global__
 void simulatorStage3(BehaviorManager * manager, int behaviorId, float* dCost);

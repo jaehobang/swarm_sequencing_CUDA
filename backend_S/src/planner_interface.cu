@@ -28,10 +28,11 @@ extern "C" {
 
 Node computeBehaviorSequence(
   const PlannerParameters & parameters, 
-  const std::vector<Obstacle> & obstacles)
+  const std::vector<Obstacle> & obstacles,
+  const std::vector<Obstacle_n> & obstacles_n)
 {
   std::cout << "Inside compute Behavior Sequence" << std::endl;
-  Planner planner(parameters, obstacles);
+  Planner planner(parameters, obstacles, obstacles_n);
   std::cout << "Planner initialized" << std::endl;
   Node node = planner.makePlan();
   //return (node.valid) ? node.sequence : BehaviorSequence();
@@ -40,10 +41,11 @@ Node computeBehaviorSequence(
 
 std::vector<SwarmState> executeBehaviorSchedule(
   const SimulatorParameters & parameters, float* costp, 
-  const PlannerParameters & planner_parameters, const std::vector<Obstacle> & obstacles, 
+  const PlannerParameters & planner_parameters, const std::vector<Obstacle> & obstacles,
+  const std::vector<Obstacle_n> & obstacles_n, 
   Node* best_node)
 {
-  Simulator simulator(parameters, planner_parameters, obstacles);
+  Simulator simulator(parameters, planner_parameters, obstacles, obstacles_n);
   return simulator.simulate(costp, best_node);
 }
 

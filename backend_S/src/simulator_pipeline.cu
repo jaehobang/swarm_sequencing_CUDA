@@ -77,6 +77,18 @@ void simulatorStage2_1(Node * nodeIn, BehaviorManager * manager, int behaviorId,
   }
 }
 
+__global__
+void simulatorStage2_2(Node * nodeIn, BehaviorManager * manager, int behaviorId, 
+  SwarmState * state, Obstacle_n * obstacles)
+{
+  int o = blockIdx.x;
+  int i = threadIdx.x;
+  Behavior * behavior = manager->getBehavior(behaviorId);
+  BehaviorContext * ctx = behavior->getContext(0);
+  if (robotIntersectsObstacle_n(ctx, obstacles+o, i)) {
+    nodeIn->valid = false;
+  }
+}
 
 
 __global__

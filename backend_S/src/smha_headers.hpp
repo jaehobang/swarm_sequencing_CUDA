@@ -6,6 +6,7 @@ const int ROBOT_MAX = 10;
 const int OBS_MAX = 10;
 const int SEQ_MAX = 10;
 const int QUEUE_SIZE = 2;
+const int OBS_NARROW_MAX = 2;
 
 typedef struct node
 {
@@ -25,6 +26,8 @@ typedef struct PARAM
 {
   int N; //number of robots
   int M; //number of obstacles
+  int S; //number of square obstacles
+  int C; //number of circle obstacles
   float H; //w1
   float robot_pos[ROBOT_MAX][3]; //assume no more than 50 robots at this time; each row (x,y,theta)
   float target_center[2]; //(x,y)
@@ -32,6 +35,7 @@ typedef struct PARAM
   float robot_radius;
   float obstacle_pos[OBS_MAX][3];
         //assume no more than 50 obstacles;obstacles are circles; each row (x,y,r)
+  float obstacle_narrow_pos[OBS_NARROW_MAX][4];
   float ti; //start time
   float tf; //end time
   float dt; //each time step
@@ -73,4 +77,3 @@ typedef struct RETURN
   uint8_t is_optimal;
   std::vector<std::string> sequence_string_array;
 } RETURN;
-

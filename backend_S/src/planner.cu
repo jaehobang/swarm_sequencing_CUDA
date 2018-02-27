@@ -87,6 +87,7 @@ Node Planner::makePlan()
   // Copy to device and execute pipeline
   dParameters.assign(1, parameters);
   dObstacles = obstacles;
+  dObstacles_n = obstacles_n;
   priorities.assign(1, node.cost + node.heuristic);
   nodes.assign(1, node);
   node.cost = std::numeric_limits<float>::infinity();
@@ -187,6 +188,7 @@ Node Planner::executePipeline()
   BehaviorManager * pBehaviorManager = thrust::raw_pointer_cast(behaviorManager.data());
   Node * pBestNode = thrust::raw_pointer_cast(best.data());
   Obstacle * pObstacles = thrust::raw_pointer_cast(dObstacles.data());
+  Obstacle_n * pObstacles_n = thrust::raw_pointer_cast(dObstacles_n.data());
   
 
   clock_t start = clock();
@@ -256,6 +258,8 @@ Node Planner::executePipeline()
       // StageC: Check collisions
       dim3 stageC1Grid(nodesToExpand, BEHAVIORS, obstacles.size());
       plannerStageC1<<<stageC1Grid, ROBOTS>>>(pNodes, pNodesExpanded, pBehaviorManager, pDurations, pObstacles);
+      dim3 stageC1_5Grid(nodesToExpand, BEHAVIORS, obstacles_n.size());
+      plannerStageC1_5<<<stargeC1_5Grid, ROBOTS>>>(pNodes, pNodesExpanded, pBehaviorManager, pDurations, pObstacles);
       plannerStageC2<<<nodesToExpand, BEHAVIORS>>>(pNodes, pNodesExpanded, pDurations);
     }
     //std::cout << "Beginning StageD" << std::endl;

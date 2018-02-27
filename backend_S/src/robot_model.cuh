@@ -63,4 +63,20 @@ bool robotIntersectsObstacle(BehaviorContext * ctx, Obstacle * obs, int i)
   return (dx*dx + dy*dy < r*r);
 }
 
+__forceinline__ __host__ __device__
+bool robotIntersectsObstacle_n(BehaviorContext * ctx, Obstacle_n * obs, int i) 
+{
+  float left = obs->x - obs->x_scale / 2;
+  float up = obs->y + obs->y_scale / 2;
+  float right = obs->x + obs->x_scale / 2;
+  float bottom = obs->y + obs->y_scale / 2;
+
+
+  float curr_x = ctx->poses.x[i];
+  float curr_y = ctx->poses.y[i];
+
+  return !(left <= curr_x && curr_x <= right && bottom <= curr_y && curr_y <= top)
+
+}
+
 #endif // ROBOT_MODEL_H

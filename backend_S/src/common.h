@@ -110,6 +110,13 @@ typedef struct Obstacle {
   float radius;
 } Obstacle;
 
+typedef struct Obstacle_n {
+  float x;
+  float y;
+  float x_scale;
+  float y_scale;
+} Obstacle_n;
+
 typedef struct PlannerParameters {
   float robotRadius;
   Target target;

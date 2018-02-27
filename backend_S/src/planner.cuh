@@ -27,20 +27,22 @@
 
 class Planner {
  public:
-  Planner(const PlannerParameters & parameters_, const std::vector<Obstacle> & obstacles_)
-  : parameters(parameters_), obstacles(obstacles_), behaviorManager(1)
+  Planner(const PlannerParameters & parameters_, const std::vector<Obstacle> & obstacles_, const std::vector<Obstacle_n> & obstacles_n_)
+  : parameters(parameters_), obstacles(obstacles_), obstacles_n(obstacles_n_), behaviorManager(1)
   {}
   
   Node makePlan();
   
   PlannerParameters parameters;
   thrust::host_vector<Obstacle> obstacles;
+  thrust::host_vecotr<Obstacle_n> obstacles_n;
   
 private:
   Node executePipeline();
 
   thrust::device_vector<PlannerParameters> dParameters;
   thrust::device_vector<Obstacle> dObstacles;
+  thrust::device_vector<Obstacle_n> dObstacles_n;
   
   thrust::device_vector<BehaviorManager> behaviorManager;
   

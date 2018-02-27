@@ -1,3 +1,5 @@
+/* This is the main.cpp inside backend_S */
+
 #include "ros/ros.h"
 #include "custom_messages/C2R.h"
 #include "custom_messages/R2C.h"
@@ -447,6 +449,10 @@ void processParam(std::vector<std::string> tokens, PARAM* parameter)
     parameter->robot_radius = std::stof(tokens[1]);
   else if (tokens[0] == "M")
     parameter->M = std::stof(tokens[1]);
+  else if (tokens[0] == "S")
+    parameter->S = std::stof(tokens[1]);
+  else if (tokens[0] == "C")
+    parameter->C = std::stof(tokens[1]);
   else if (tokens[0] == "H")
     parameter->H = std::stof(tokens[1]);
   else if (tokens[0] == "H2")
@@ -569,7 +575,7 @@ void parseMap()
       else if (tokens[0] == "obstacle_pos")
       {
         int count = 0;
-        while (count < parameter->M)
+        while (count < parameter->C)
         {
           std::getline(file, str);
           // String working variables
@@ -587,6 +593,30 @@ void parseMap()
           parameter->obstacle_pos[count][1] = std::stof(tokens[1]);
           parameter->obstacle_pos[count][2] = std::stof(tokens[2]);
           count++;
+        }
+      }
+      else if (tokens[0] == "obstacle_narrow_pos")
+      {
+        //TODO: Need to fill in this part and 
+        int count = 0;
+        while (count < parameter->S)
+        {
+          std::getline(file, str);
+          std::istringstream iss(str);
+          std::vector<std::string> tokens;
+
+          copy(std::istream_iterator<std::string>(iss), std::istream_iterator<std::string>(), back_inserter(tokens));
+          if (tokens.size() != 4)
+          {
+            printf("obstacle narrow pos format wrong in file\n");
+            return;
+          }
+          parameter->obstacle_narrow_pos[count][0] = std::stof(tokens[0]);
+          parameter->obstacle_narrow_pos[count][1] = std::stof(tokens[1]);
+          parameter->obstacle_narrow_pos[count][2] = std::stof(tokens[2]);
+          parameter->obstacle_narrow_pos[count][3] = std::stof(tokens[3]);
+          count++;
+          
         }
       }
 			else if (tokens[0] == "target_center")
@@ -676,8 +706,8 @@ void updateMap()
   mk.id = 0;
   mk.type = visualization_msgs::Marker::CYLINDER;
   mk.action = visualization_msgs::Marker::ADD;
-  printf("Number of obstacles!!!! is %d\n", parameter->M);
-  for(int i = 0; i < parameter->M; i++)
+  printf("Number of normal obstacles!!!! is %d\n", parameter->C);
+  for(int i = 0; i < parameter->C; i++)
 	{
     mk.id++;
 		float x = parameter->obstacle_pos[i][0];
@@ -703,7 +733,37 @@ void updateMap()
 		ros::spinOnce();
 		cr1_rate.sleep();
   }
+  mk.type = visualization_msgs::Marker::CUBE;
+  print("Number of narrow obstacles!!!! is %d\n", parameter->S);
+  for(int i = 0; i < parameter->S; i++)
+  {
+    mk.id++;
+    float x = parameter->obstacle_narrow_pos[i][0];
+    float y = parameter->obstacle_narrow_pos[i][1];
+    float x_scale = parameter->obstacle_narrow_pos[i][2];
+    float y_scale = parameter->obstacle_narrow_pos[i][3];
+    mk.header.stamp = ros::Time::now();
+    mk.pose.position.x = x;
+    mk.pose.position.y = y;
+    mk.pose.position.z = 0;
+    mk.pose.orientation.x = 0;
+    mk.pose.orientation.y = 0;
+    mk.pose.orientation.z = 0;
+    mk.pose.orientation.w = 1;
+    mk.scale.x = x_scale;
+    mk.scale.y = y_scale;
+    mk.scale.z = 0.1;
+    mk.color.r = 0;
+    mk.color.g = 0;
+    mk.color.b = 1;
+    mk.color.a = 0.5;
+    mk.lifetime = ros::Duration();
+    cr1_publisher.publish(mk);
+    ros::spinOnce();
+    cr1_rate.sleep();
+  }
   //2.2 robots' initial poses
+  mk.type = visualization_msgs::Marker::CYLINDER;
   mk.ns = "robot_initial_pos";
   mk.id = 0;
   for(int i = 0; i < parameter->N; i++)

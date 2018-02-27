@@ -43,6 +43,10 @@ void plannerStageB2(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, 
 __global__
 void plannerStageC1(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, DurationSequence * durations, Obstacle * obstacles);
 
+// StageC1_5: Obstacle checks
+__global__
+void plannerStageC1_5(Node * nodesIn, Node * nodesOut, BehaviorManager * manager, DurationSequence * durations, Obstacle_n * obstacles);
+
 // StageC2: Update time step
 __global__
 void plannerStageC2(Node * nodesIn, Node * nodesOut, DurationSequence * durations);

@@ -43,6 +43,8 @@ Simulator::simulate(float* costp, Node* best_node)
   dParameters.assign(1, planner_parameters);
   dObstacles = obstacles;
   Obstacle * pObstacles = thrust::raw_pointer_cast(dObstacles.data());
+  dObstacles_n = obstacles_n;
+  Obstacle_n * pObstacles_n = thrust::raw_pointer_cast(dObstacles_n.data());
   PlannerParameters * pParameters = thrust::raw_pointer_cast(dParameters.data());
   MapLimits * pMapLimits = reinterpret_cast<MapLimits *>(
     reinterpret_cast<char *>(pParameters) + offsetof(PlannerParameters, mapLimits));
@@ -73,6 +75,8 @@ Simulator::simulate(float* costp, Node* best_node)
       simulatorStage2<<<1, ROBOTS>>>(nodeIn, pBehaviorManager, behaviorId, pStateOut, pMapLimits);
       dim3 stage2_1Grid(obstacles.size(), 1, 1);
       simulatorStage2_1<<<stage2_1Grid, ROBOTS>>>(nodeIn, pBehaviorManager, behaviorId, pStateOut, pObstacles);
+      dim3 stage2_2Grid(obstacles_n.size(), 1, 1);
+      simulatorStage2_2<<<stage2_2Grid, ROBOTS>>>(nodeIn, pBehaviorManager, behaviorId, pStateOut, pObstacles_n);
       //std::copy_n(states[t+1].x, ROBOTS , std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
       //std::copy_n(states[t+1].y, ROBOTS , std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
       //std::copy_n(states[t+1].theta, ROBOTS , std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;

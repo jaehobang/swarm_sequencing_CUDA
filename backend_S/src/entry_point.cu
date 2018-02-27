@@ -46,7 +46,6 @@ void initialize_parameters(PARAM* param, std::vector<float> time_array, std::vec
     printf("robot %d pos = %f %f %f\n", i, param->robot_pos[i][0], param->robot_pos[i][1],
             param->robot_pos[i][2]);
   }
-
   for(int i = 0; i < param->M; i++)
   {
     printf("obstacle %d pos = %f %f %f\n", i, param->obstacle_pos[i][0], param->obstacle_pos[i][1],
@@ -228,9 +227,10 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
   std::copy_n(param->time_array, param->time_array_count, std::ostream_iterator<float>(std::cout, " ")); std::cout << std::endl;
 
   std::vector<Obstacle> obstacles;
+  std::vector<Obstacle_n> obstacles_n;
   
 
-  for (int i=0; i<param->M; i++) {
+  for (int i=0; i<param->C; i++) {
     Obstacle obstacle;
     obstacle.x = param->obstacle_pos[i][0];
     obstacle.y = param->obstacle_pos[i][1];
@@ -238,12 +238,17 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
     obstacles.push_back(obstacle);
   }
 
-  thrust::host_vector<Obstacle> h_obstacles;
-  thrust::device_vector<Obstacle> d_obstacles;
-  printf("thrust host/device_vector test is done\n");
+  for (int i=0; i< param->S; i++) {
+    Obstacle_n obstacle_n;
+    obstacle_n.x = param->obstacle_narrow_pos[i][0];
+    obstacle_n.y = param->obstacle_narrow_pos[i][1];
+    obstacle_n.x_scale = param->obstacle_narrow_pos[i][2];
+    obstacle_n.y_scale = param->obstacle_narrow_pos[i][3];
+    obstacles_n.push_back(obstacle_n);
+  }
+
+
   
-
-
 
   if(is_aided == 0) { //unaided
     
@@ -265,7 +270,7 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
     best_node.complete = true;
     best_node.optimal = true;
     best_node.valid = true;
-    std::vector<SwarmState> trajectory = executeBehaviorSchedule(simParams, &cost, planParams, obstacles, &best_node);
+    std::vector<SwarmState> trajectory = executeBehaviorSchedule(simParams, &cost, planParams, obstacles, obstacles_n, &best_node);
     best_node.cost = cost;
 
     generateReturn(&return_1, &simParams, &best_node, trajectory);
@@ -292,7 +297,7 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
     best_node1.optimal = true;
     best_node1.complete = true;
     std::vector<SwarmState> trajectory_phase1 = executeBehaviorSchedule(simParams_phase1, &cost_phase1, 
-                                          planParams, obstacles, &best_node1);
+                                          planParams, obstacles, obstacles_n, &best_node1);
     best_node1.cost = cost_phase1;
 
 
@@ -308,7 +313,7 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
 
 
 
-        Node best_node = computeBehaviorSequence(planParams, obstacles);
+        Node best_node = computeBehaviorSequence(planParams, obstacles, obstacles_n);
         std::cout << "Computed behavior sequence: ";
         std::copy_n(best_node.sequence.ids, best_node.sequence.length, std::ostream_iterator<int>(std::cout, " ")); 
         std::cout << std::endl;
@@ -327,7 +332,7 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
         best_node2.valid = true;
         best_node2.optimal = false;
         best_node2.complete = true;
-        std::vector<SwarmState> trajectory_phase2 = executeBehaviorSchedule(simParams_phase2, &cost_phase2, planParams, obstacles, &best_node2);
+        std::vector<SwarmState> trajectory_phase2 = executeBehaviorSchedule(simParams_phase2, &cost_phase2, planParams, obstacles, obstacles_n, &best_node2);
 
         /* Combine the results from two phases before going into generateReturn */
         best_node.cost += cost_phase1;
@@ -368,7 +373,7 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
   else if(is_aided == 2) //only aided
   {
     printf("Computing Behavior Sequence...\n");
-    Node best_node = computeBehaviorSequence(planParams, obstacles);
+    Node best_node = computeBehaviorSequence(planParams, obstacles, obstacles_n);
     std::cout << "Computed behavior sequence: ";
     std::copy_n(best_node.sequence.ids, best_node.sequence.length, std::ostream_iterator<int>(std::cout, " ")); 
     std::cout << std::endl;
@@ -384,7 +389,7 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
     float cost = 0;
 
     Node best_node1;
-    std::vector<SwarmState> trajectory = executeBehaviorSchedule(simParams, &cost, planParams, obstacles, &best_node1);
+    std::vector<SwarmState> trajectory = executeBehaviorSchedule(simParams, &cost, planParams, obstacles, obstacles_n, &best_node1);
     best_node1.cost = cost;
     
     generateReturn(&return_1, &simParams, &best_node, trajectory);
@@ -410,4 +415,3 @@ RETURN testmain(PARAM* param, int is_aided, std::vector<float> time_array, std::
  
   return return_1;
 }
-

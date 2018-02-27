@@ -29,8 +29,10 @@ class Simulator {
  public:
   Simulator(const SimulatorParameters & parameters_,
   	const PlannerParameters & planner_parameters_, 
-  	const std::vector<Obstacle> & obstacles_)
-  : parameters(parameters_), obstacles(obstacles_), 
+  	const std::vector<Obstacle> & obstacles_,
+    const std::vector<Obstacle_n> & obstacles_n_)
+  : parameters(parameters_), obstacles(obstacles_),
+    obstacles_n(obstacles_n_), 
     planner_parameters(planner_parameters_), 
     behaviorManager(1)
   {}
@@ -40,6 +42,7 @@ class Simulator {
   SimulatorParameters parameters;
   PlannerParameters planner_parameters;
   thrust::host_vector<Obstacle> obstacles;
+  thrust::host_vector<Obstacle_n> obstacles_n;
   
  private: 
 
@@ -48,6 +51,7 @@ class Simulator {
 
   thrust::device_vector<PlannerParameters> dParameters;
   thrust::device_vector<Obstacle> dObstacles;
+  thrust::device_vector<Obstacle_n> dObstacles_n;
 };
 
 #endif // SIMULATOR_H 

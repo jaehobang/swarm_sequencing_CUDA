@@ -24,10 +24,9 @@
 
 extern "C" {
 
-Node computeBehaviorSequence(const PlannerParameters &, 
-                                         const std::vector<Obstacle> &);
+Node computeBehaviorSequence(const PlannerParameters &, const std::vector<Obstacle> &, const std::vector<Obstacle_n> &);
 std::vector<SwarmState> executeBehaviorSchedule(const SimulatorParameters &, float* ,
-	const PlannerParameters &, const std::vector<Obstacle> &, Node*);
+	const PlannerParameters &, const std::vector<Obstacle> &, const std::vector<Obstacle_n> &, Node*);
 
 }
 
