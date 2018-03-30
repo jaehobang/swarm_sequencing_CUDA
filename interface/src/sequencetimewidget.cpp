@@ -344,6 +344,16 @@ void SequenceTimeWidget::setSequence(std::vector<QString> sequence)
   return;
 }
 
+void SequenceTimeWidget::setSwitchTime(std::vector<float> switchtime)
+{
+    for(int i = 0; i < switchtime.size(); i++)
+    {
+        sequence_list->item(i, TIME_COl)->setText(QString::number(switchtime[i]));
+    }
+    return;
+    //TODO: I might need some error checking for this function....we will see
+    
+}
 
 void SequenceTimeWidget::setPublisher(ros::Publisher id_publisher)
 {

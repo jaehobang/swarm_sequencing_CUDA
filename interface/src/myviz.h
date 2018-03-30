@@ -18,6 +18,7 @@
 #include "custom_messages/R2C.h"
 #include "custom_messages/R2D.h"
 #include "custom_messages/C2R.h"
+#include "custom_messages/waypoint.h"
 #include "visualization_msgs/MarkerArray.h"
 
 
@@ -56,8 +57,8 @@ private Q_SLOTS:
   void checkNext();
   void nextWrapper();
   void createHSIWidget();
-  
-
+  void createWaypoint();
+  void estimate();
 
 private:
   TimerWidget* tw;
@@ -68,6 +69,8 @@ private:
   QPushButton* nb;
   QPushButton* sb;
   QPushButton* prb;
+  QPushButton* wb; //waypoint create button
+  QPushButton* eb; //estimate button for waypoints
   TimeHorizonWidget* thw;
 	SequenceTimeWidget* stw;
   QWidget* np;
@@ -91,6 +94,7 @@ private:
   ros::Publisher id_publisher;
   ros::Subscriber ic_subscriber;
   ros::Subscriber ic2_subscriber;
+  ros::Subscriber e_subscriber;
 
   std::vector<string> behavior_array = { "Rendezvous", "Antirendezvous", "Flock East", "Flock North", "Flock West", "Flock South", "Line X", "Line Y" };
   std::vector<string> behavior_array_short = {"r", "a", "e", "n", "w", "s", "x", "y"};
@@ -108,8 +112,6 @@ private:
   QString aided_optimal_cost;
   int curr_map_number;
   
-
-
   std::vector<int> sequenceInputConvert(QString sequence);
   std::vector<float> switchtimeInputConvert(QString switchtime);
   int iterationConvert(QString iteration);

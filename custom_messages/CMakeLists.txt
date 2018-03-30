@@ -53,6 +53,7 @@ add_message_files(
    R2C.msg
    C2R.msg
    R2D.msg
+   waypoint.msg
 )
 
 ## Generate services in the 'srv' folder

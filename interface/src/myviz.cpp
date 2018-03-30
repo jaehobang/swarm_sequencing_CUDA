@@ -16,8 +16,11 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   ROS_INFO("starting interface_node...\n");
   ic_publisher = n.advertise<custom_messages::R2C>("/hsi/R2C", 1000);
   id_publisher = n.advertise<custom_messages::R2D>("/hsi/R2D", 1000);
+  waypoint_publisher = n.advertise<custom_messages::waypoint>("/hsi/waypoint", 1000);
+
   ic_subscriber = n.subscribe<custom_messages::C2R>("/hsi/C2R", 1000, &MyViz::callBack, this);
   ic2_subscriber = n.subscribe<custom_messages::C2R>("/hsi/C2R2", 1000, &MyViz::callBack2, this);  
+  e_subscriber = n.subscribe<custom_messages::estimation>("/hsi/estimation", 1000, &MyViz::callBackEstimation, this);
 
   this->name = "";
   this->is_aided = 0;
@@ -36,6 +39,8 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   nb = new QPushButton(QApplication::translate("childwidget", "Next"), this); 
   sb = new QPushButton(QApplication::translate("childwidget", "Submit"), this);
   prb = new QPushButton(QApplication::translate("childwidget", "Pause/Resume"), this);
+  wb = new QPushButton(QApplication::translate("childwidget", "Create Waypoint"), this);
+  eb = new QPushbutton(QApplication::translate("childwidget", "Estimate"), this);
 
   vl = new QLabel("Valid");
   cl = new QLabel("Complete");
@@ -68,6 +73,8 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
   connect(nb, SIGNAL(released()), this, SLOT(checkNext()));
 	connect(sb, SIGNAL(released()), this, SLOT(submit()));
   connect(prb, SIGNAL(released()), tw, SLOT(pauseResume()));
+  connect(wb, SIGNAL(released()), this, SLOT(createWaypoint()));
+  connect(eb, SIGNAL(released()), this, SLOT(estimate()));
 
   QVBoxLayout* col1 = new QVBoxLayout();
   col1->addWidget(render_panel_);
@@ -88,6 +95,7 @@ MyViz::MyViz( QWidget* parent) : QWidget( parent )
 
   QVBoxLayout* col2 = new QVBoxLayout();
   col2->addWidget(prb);
+  col2->addWidget(wb); //NOTE: this is tentative
   col2->addWidget(tw);
   //col2->addWidget(sw);
   col2->addWidget(stw);
@@ -201,6 +209,25 @@ MyViz::~MyViz()
   delete manager_;
 }
 
+void MyViz::estimate()
+{
+  custom_messages::waypoint waypoint;
+  waypoint.stamp = ros::Time::now();
+  waypoint.estimate = true;
+  waypoint_publisher.publish(waypoint);
+  ros::spinOnce();
+}
+
+
+void MyViz::createWaypoint()
+{
+  custom_messages::waypoint waypoint;
+  waypoint.stamp = ros::Time::now();
+  waypoint.estimate = false;
+  waypoint_publisher.publish(waypoint);
+  ros::spinOnce();
+
+}
 
 void MyViz::createHSIWidget()
 {
@@ -803,6 +830,13 @@ void MyViz::setNodeHandle(ros::NodeHandle nn)
   n = nn;
 }
 
+void MyViz::callBackEstimation(const custom_messages::estimation::ConstPtr& msg)
+{
+  ROS_INFO("Callback estimation inside interface");
+  stw->setSwitchTime(msg->durations);
+
+  return;
+}
 
 void MyViz::callBack2(const custom_messages::C2R::ConstPtr& msg)
 {

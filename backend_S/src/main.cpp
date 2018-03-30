@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include <interactive_markers/interactive_marker_server.h>
+#include <interactive_markers/menu_handler.h>
 #include <tf/tf.h>
 
 
@@ -22,14 +23,34 @@ ros::Publisher ci_publisher; //publishes whatever is requested
 ros::Publisher ci1_publisher; //publishes optimal sequence for unaided/train
 ros::Publisher cr_publisher; //publishes trajectory to rviz
 ros::Publisher cr1_publisher; //publishes map info to rvia
+ros::Publisher e_publisher;
 PARAM* parameter;
 int N = 10;
 int MAP_NUM = 0;
 std::vector<int> map_sequence;
+int waypoint_count = 0;
 
 boost::shared_ptr<interactive_markers::InteractiveMarkerServer> server;
+interactive_markers::MenuHandler menu_handler;
 
-visualization_msgs::Marker makeCircle( visualization_msgs::InteractiveMarker &msg , float radius)
+
+typedef struct waypointInfo {
+  float x;
+  float y;
+  float r;
+} waypointInfo;
+
+typedef struct waypointParam {
+  waypointInfo list[10];
+  int count;
+} waypointParam;
+
+waypointParam waypoint_param;
+std::vector<visualization_msgs::InteractiveMarker> waypoint_container;
+
+
+
+visualization_msgs::Marker makeCircle(float radius)
 {
   visualization_msgs::Marker marker;
   
@@ -45,12 +66,128 @@ visualization_msgs::Marker makeCircle( visualization_msgs::InteractiveMarker &ms
   return marker;
 }
 
-
-visualization_msgs::Marker makeLine( visualization_msgs::InteractiveMarker &msg , 
-                          float start_x, float start_y, float end_x, float end_y)
+visualization_msgs::Marker makeWaypoint()
 {
-  visualization_msgs::Marker marker;
+  visualization_msgs::InteractiveMarker waypoint_marker;
+  waypoint_marker.header.frame_id = "map";
+  waypoint_marker.pose.position.x = 0;
+  waypoint_marker.pose.position.y = 0;
+  waypoint_marker.pose.position.z = 0;
+  waypoint_marker.scale = 5;
+
+  waypoint_marker.name = "waypoint" + std::to_string(waypoint_count);
+  waypoint_marker.description = std::to_string(waypoint_count);
+  waypoint_count++;
+
+  visualization_msgs::InteractiveMarkerControl control;
+
+  control.orientation.w = 1;
+  control.orientation.x = 0;
+  control.orientation.y = 1;
+  control.orientation.z = 0;
+  control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_PLANE;
+  waypoint_marker.controls.push_back(control);
+
+  // make a box which also moves in the plane
   
+  control.markers.push_back( makeCircle(waypoint_marker.scale) );
+  control.always_visible = true;
+  waypoint_marker.controls.push_back(control);
+
+
+  InteractiveMarkerControl control_menu;
+
+  control_menu.interaction_mode = InteractiveMarkerControl::MENU;
+  control_menu.name = "menu_only_control";
+
+  control_menu.markers.push_back( waypoint_marker );
+  control_menu.always_visible = true;
+  waypoint_marker.controls.push_back(control_menu);
+
+  // we want to use our special callback function
+  server->insert(int_marker);
+  server->setCallback(int_marker.name, &processFeedbackWaypoint);
+  menu_handler.apply( *server, int_marker.name );
+
+  waypoint_container.push_back(int_marker);
+  
+  waypoint_param.list[waypoint_param.count].x = 0;
+  waypoint_param.list[waypoint_param.count].y = 0;
+  waypoint_param.list[waypoint_param.count].r = waypoint_marker.scale;
+  
+  waypoint_param.count++;
+
+  
+}
+
+void processFeedbackWaypoint( const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback )
+{
+
+  std::ostringstream s;
+  s << "Feedback from marker '" << feedback->marker_name << "' "
+      << " / control '" << feedback->control_name << "'";
+
+  std::ostringstream mouse_point_ss;
+
+  if( feedback->mouse_point_valid )
+  {
+
+    //TODO: Need to fetch the ID of object, 
+    //can do this by doing something like feedback->marker_description
+    //parameter->target_center[0] = feedback->mouse_point.x;
+    //parameter->target_center[1] = feedback->mouse_point.y;
+    
+  }
+
+
+  switch ( feedback->event_type )
+  {
+    case visualization_msgs::InteractiveMarkerFeedback::BUTTON_CLICK:
+      ROS_INFO_STREAM( s.str() << ": button click" << mouse_point_ss.str() << "." );
+      break;
+
+    case visualization_msgs::InteractiveMarkerFeedback::MENU_SELECT:
+      if (feedback->menu_entry_id == 0) //make bigger
+      {
+        int id;
+        sscanf(feedback->marker_description, "%d", &id);
+        waypoint_param.list[id].r += 1;
+      }
+      else { //make smaller
+        int id;
+        sscanf(feedback->marker_description, "%d", &id);
+        waypoint_param.list[id].r -= 1;
+      }
+      ROS_INFO_STREAM( s.str() << ": menu item " << feedback->menu_entry_id << " clicked" << mouse_point_ss.str() << "." );
+      break;
+
+    case visualization_msgs::InteractiveMarkerFeedback::POSE_UPDATE:
+    {
+      //TODO: Need to figure out how this is different from mouse_point_valid
+      int id;
+      sscanf(feedback->marker_description, "%d", &id);
+      waypoint_param.list[id].x = feedback->pose.position.x;
+      waypoint_param.list[id].y = feedback->pose.position.y;
+
+      break;
+    }
+    case visualization_msgs::InteractiveMarkerFeedback::MOUSE_DOWN:
+      ROS_INFO_STREAM( s.str() << ": mouse down" << mouse_point_ss.str() << "." );
+      break;
+
+    case visualization_msgs::InteractiveMarkerFeedback::MOUSE_UP:
+      ROS_INFO_STREAM( s.str() << ": mouse up" << mouse_point_ss.str() << "." );
+      break;
+  }
+
+  server->applyChanges();
+}
+
+
+visualization_msgs::Marker makeLine(float start_x, float start_y, float end_x, float end_y)
+{
+  
+  visualization_msgs::Marker marker;
   marker.type = visualization_msgs::Marker::LINE_STRIP;
   marker.scale.x = 1;
   marker.scale.y = 1;
@@ -109,7 +246,8 @@ void makeDestinationMarker( const tf::Vector3& position, const float radius )
   int_marker.controls.push_back(control);
 
   // make a box which also moves in the plane
-  control.markers.push_back( makeCircle(int_marker, radius) );
+  
+  control.markers.push_back( makeCircle(radius) );
   control.always_visible = true;
   int_marker.controls.push_back(control);
 
@@ -146,7 +284,8 @@ void makeAxisMarker( const tf::Vector3& position, const float length )
   float ex = sp.x + length;
   float ey = sp.y - length;
 
-  control.markers.push_back( makeLine(int_marker_east, sp.x, sp.y, ex, sp.y) );
+  makeLine(sp.x, sp.y, ex, sp.y)
+  control.markers.push_back( int_marker_east );
   control.always_visible = true;
   int_marker_east.controls.push_back(control);
 
@@ -171,7 +310,8 @@ void makeAxisMarker( const tf::Vector3& position, const float length )
   control1.orientation.z = 0;
   int_marker_south.controls.push_back(control1);
 
-  control1.markers.push_back( makeLine(int_marker_south, sp.x, sp.y, sp.x, ey) );
+  makeLine(sp.x, sp.y, sp.x, ey)
+  control1.markers.push_back( int_marker_south );
   control1.always_visible = true;
   int_marker_south.controls.push_back(control1);
 
@@ -853,24 +993,66 @@ void updateMap()
   position = tf::Vector3(parameter->target_center[0], parameter->target_center[1], 0);
   makeDestinationMarker( position, parameter->target_radius );
   server->applyChanges();
-  //tf::Vector3 position_axes;
-  //position_axes = tf::Vector3(-18, 18, 0);
-  //makeAxisMarker(position_axes, 5);
-
-
-
-
-
-
-
-
-
-
-
 
   ros::spinOnce();
   cr1_rate.sleep();  
 
+}
+
+void doEstimate()
+{
+  float start_x, start_y, end_x, end_y, displacement_x, displacement_y;
+  float start_r, end_r, displacement_r;
+  start_x = 0;
+  start_y = 0;
+  start_r = 3;
+  custom_messages::estimation estimates;
+  estimates.stamp = ros::Time::now();
+
+  for(int i = 0; i < N; i++)
+  {
+    start_x += parameter->robot_pos[i][0];
+    start_y += parameter->robot_pos[i][1]; 
+  }
+  start_x /= N;
+  start_y /= N;
+  for(int i = 0; i < waypoint_container.size(); i++)
+  {
+    end_x = waypoint_param.list[0].x;
+    end_y = waypoint_param.list[0].y;
+    displacement_x = abs(end_x - start_x);
+    displacement_y = abs(end_y - start_y);
+    displacement_r = abs(end_r - start_r);
+    duration_x = displacement_x / 8.0f;
+    duration_y = displacement_y / 8.0f;
+    duration_r = displacement_r / 8.0f;
+
+    if(duration_x != 0) estimation.durations.push_back(duration_x);
+    if(duration_y != 0) estimation.durations.push_back(duration_y);
+    if(duration_r != 0) estimation.durations.push_back(duration_r);
+    
+    
+    start_x = end_x;
+    start_y = end_y;
+    start_r = end_r;
+  }
+
+
+  e_publisher.publish(estimates);
+
+
+}
+
+void callBackWaypoint(const custom_messages::waypoint::ConstPtr& msg)
+{
+  if (msg->estimate == true)
+  {
+    doEstimate();
+  }
+  else{
+    makeWaypoint();
+  }
+  return;
 }
 
 
@@ -959,12 +1141,21 @@ int main(int argc, char** argv)
   cr_publisher = n.advertise<visualization_msgs::MarkerArray>("visualization_marker_array", 1);
 	
 	cr1_publisher = n.advertise<visualization_msgs::Marker>("map_related", 1);
-	generateRandomMapSequence();
+	e_publisher = n.advertise<custom_messages::estimation>("/hsi/estimation", 1000);
+
+  generateRandomMapSequence();
 
   parameter = new PARAM[1];
 	updateMap();
 
   ros::Subscriber c_subscriber = n.subscribe<custom_messages::R2C>("/hsi/R2C", 1000, callBack);
+  ros::Subscriber w_subscriber = n.subscribe<custom_messages::waypoint>("/hsi/waypoint", 1000, callBackWaypoint);
+
+  waypoint_param.count = 0;
+
+  menu_handler.insert( "Make Bigger", &processFeedbackWaypoint );
+  menu_handler.insert( "Make Smaller", &processFeedbackWaypoint );
+
 
   ros::spin();
 

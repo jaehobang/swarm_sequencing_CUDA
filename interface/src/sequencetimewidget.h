@@ -20,7 +20,7 @@ public:
     QString getSwitchTime();
     void reset();
     void setPublisher(ros::Publisher id_publisher);
-		void setSequence(std::vector<QString> sequence);
+	void setSequence(std::vector<QString> sequence);
 
 private Q_SLOTS:
     void addButtonClicked();
